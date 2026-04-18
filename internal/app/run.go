@@ -58,12 +58,12 @@ func Run(ctx context.Context, d Deps) int {
 	ctx2.LatencyMs = latencyMs
 
 	if !d.Flags.Machine && len(repo.PRs) == 0 {
-		fmt.Fprintf(d.Stdout, "\nNo open PRs authored by @%s in %s/%s.\n\n", repo.ViewerLogin, repo.Owner, repo.Name)
+		_, _ = fmt.Fprintf(d.Stdout, "\nNo open PRs authored by @%s in %s/%s.\n\n", repo.ViewerLogin, repo.Owner, repo.Name)
 		return exitNoPRs
 	}
 	out, err := d.Formatter.Format(repo, ctx2)
 	if err != nil {
-		fmt.Fprintf(d.Stderr, "gh prs: format: %v\n", err)
+		_, _ = fmt.Fprintf(d.Stderr, "gh prs: format: %v\n", err)
 		return exitGhError
 	}
 	_, _ = io.WriteString(d.Stdout, out)
