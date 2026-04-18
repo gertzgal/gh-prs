@@ -55,11 +55,18 @@ Requires an authenticated `gh` (`gh auth login`). The binary is self-contained.
 ## Usage
 
 ```
-gh prs           # human-readable
-gh prs --json    # JSON to stdout
-gh prs --debug   # equivalent gh api calls to stderr
+gh prs                    # human-readable
+gh prs --json             # JSON to stdout
+gh prs --debug            # log the actual GraphQL request/response to stderr
+gh prs --no-cache         # bypass the disk cache
+gh prs --cache-ttl 2m     # override the default 60s cache TTL
 gh prs --help
 ```
+
+**Caching.** Responses are cached to disk (platform cache dir, under `gh-prs/`)
+with a 60s TTL by default. Repeat invocations within that window skip the
+network entirely. Override with `--cache-ttl` or `GH_PRS_CACHE_TTL=2m`, or
+disable with `--no-cache` / `GH_PRS_NO_CACHE=1`.
 
 **Exit codes:** `0` ok · `1` gh/network · `2` not a GitHub repo · `3` no open PRs.
 

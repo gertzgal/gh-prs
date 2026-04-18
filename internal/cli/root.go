@@ -16,13 +16,22 @@ import (
 	"golang.org/x/term"
 )
 
-// USAGE reproduces the TS src/cli-args.ts USAGE constant byte-for-byte.
-const USAGE = `Usage: gh prs [--json] [--debug] [--help]
+// USAGE reproduces the TS src/cli-args.ts USAGE constant byte-for-byte, plus
+// the new perf-related flags added in v0.2.
+const USAGE = `Usage: gh prs [--json] [--debug] [--no-cache] [--cache-ttl <dur>] [--help]
 
-  --json    Emit the fetched repo + PRs as JSON to stdout. No colors, no spinner.
-  --debug   Print the equivalent gh api REST calls to stderr before querying.
-            Also honored via DEBUG=1 env var.
-  --help    Show this help.
+  --json           Emit the fetched repo + PRs as JSON to stdout. No colors, no spinner.
+  --debug          Log the actual GraphQL request + response (URL, headers, body, timing)
+                   to stderr. Still prints the "REST equivalent" block for orientation.
+                   Also honored via DEBUG=1 env var.
+  --no-cache       Skip the disk cache for this invocation.
+                   Also honored via GH_PRS_NO_CACHE=1.
+  --cache-ttl <d>  Cache TTL (Go duration: "60s", "2m", "10m"). Default 60s.
+                   Also honored via GH_PRS_CACHE_TTL.
+  --help           Show this help.
+
+Cache lives in $XDG_CACHE_HOME/gh-prs/ (or platform equivalent) and is keyed by
+the full GraphQL request body, so a different repo or viewer will never collide.
 
 Exit codes: 0 success · 1 gh/network failure · 2 not in a GitHub repo · 3 no authored open PRs.
 `
@@ -32,7 +41,8 @@ Exit codes: 0 success · 1 gh/network failure · 2 not in a GitHub repo · 3 no 
 // Call site: cmd/gh-prs/main.go -> os.Exit(cli.Execute(os.Args[1:], os.Environ()))
 func Execute(argv []string, env []string) int {
 	envMap := envSliceToMap(env)
-	var cobraJSON, cobraDebug bool
+	var cobraJSON, cobraDebug, cobraNoCache bool
+	var cobraCacheTTL string
 	runExit := ExitSuccess
 
 	cmd := &cobra.Command{
@@ -41,14 +51,16 @@ func Execute(argv []string, env []string) int {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			flags := composeFlags(cobraJSON, cobraDebug, envMap)
+			flags := composeFlags(cobraJSON, cobraDebug, cobraNoCache, cobraCacheTTL, envMap)
 			runExit = runOnce(flags, envMap, os.Stdout, os.Stderr)
 			return nil
 		},
 	}
 	cmd.SetArgs(argv)
 	cmd.Flags().BoolVar(&cobraJSON, "json", false, "Emit JSON to stdout (no colors, no spinner)")
-	cmd.Flags().BoolVar(&cobraDebug, "debug", false, "Print REST equivalents to stderr (also via DEBUG=1 env)")
+	cmd.Flags().BoolVar(&cobraDebug, "debug", false, "Log actual GraphQL request/response to stderr (also via DEBUG=1)")
+	cmd.Flags().BoolVar(&cobraNoCache, "no-cache", false, "Skip the disk cache (also via GH_PRS_NO_CACHE=1)")
+	cmd.Flags().StringVar(&cobraCacheTTL, "cache-ttl", "", "Cache TTL (e.g. 60s, 2m). Default 60s.")
 	cmd.SetOut(os.Stdout)
 	cmd.SetErr(os.Stderr)
 	cmd.SetHelpFunc(func(_ *cobra.Command, _ []string) {
@@ -71,7 +83,8 @@ func runOnce(flags Flags, env map[string]string, stdout, stderr io.Writer) int {
 	stdoutIsTTY := term.IsTerminal(int(os.Stdout.Fd()))
 	stderrIsTTY := term.IsTerminal(int(os.Stderr.Fd()))
 
-	client, err := github.New()
+	clientOpts := buildClientOptions(flags, env, stderr, stderrIsTTY)
+	client, err := github.New(clientOpts)
 	if err != nil {
 		fmt.Fprintf(stderr, "gh prs: %s\n", err)
 		return MapError(err, false)
@@ -99,6 +112,24 @@ func runOnce(flags Flags, env map[string]string, stdout, stderr io.Writer) int {
 		Stderr: stderr,
 		Now:    time.Now,
 	})
+}
+
+// buildClientOptions converts CLI flags + env into github.Options. Debug logs
+// are colorized only when stderr is a TTY and color is not suppressed.
+func buildClientOptions(flags Flags, env map[string]string, stderr io.Writer, stderrIsTTY bool) github.Options {
+	opts := github.Options{}
+	if flags.Debug {
+		opts.Debug = true
+		opts.DebugOut = stderr
+		opts.DebugColor = ShouldColor(env, stderrIsTTY)
+	}
+	if !flags.NoCache {
+		ttl, _ := github.ParseCacheTTL(flags.CacheTTL)
+		opts.EnableCache = true
+		opts.CacheTTL = ttl
+		opts.CacheDir = github.DefaultCacheDir()
+	}
+	return opts
 }
 
 func tryCurrentRepo() (owner, name string, ok bool) {
