@@ -8,10 +8,6 @@ import (
 	"github.com/gertzgal/gh-prs/internal/stacks"
 )
 
-// lowerKey normalises a login for case-insensitive section matching.
-// GitHub logins are case-preserving but comparison is case-insensitive.
-func lowerKey(s string) string { return strings.ToLower(s) }
-
 // botNorm normalises a GitHub login for bot-author matching.
 //
 // GitHub's GraphQL API returns the login of an app/bot user without the
