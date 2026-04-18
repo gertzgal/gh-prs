@@ -22,3 +22,4 @@ jobs:
         with:
           go_version_file: go.mod
           generate_attestations: true
+          build_script_override: script/build.sh
