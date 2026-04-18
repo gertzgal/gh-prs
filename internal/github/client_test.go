@@ -392,6 +392,25 @@ func TestFetchRepo_DryRun_MultipleAuthors(t *testing.T) {
 	}
 }
 
+func TestAuthorLogin_BotTypenameAppendsSuffix(t *testing.T) {
+	tests := []struct {
+		login    string
+		typename string
+		want     string
+	}{
+		{"github-actions", "Bot", "github-actions[bot]"},
+		{"dependabot", "Bot", "dependabot[bot]"},
+		{"alice", "User", "alice"},
+		{"alice", "", "alice"},
+	}
+	for _, tc := range tests {
+		got := authorLogin(tc.login, tc.typename)
+		if got != tc.want {
+			t.Errorf("authorLogin(%q, %q) = %q; want %q", tc.login, tc.typename, got, tc.want)
+		}
+	}
+}
+
 func itoa(n int) string {
 	if n == 0 {
 		return "0"

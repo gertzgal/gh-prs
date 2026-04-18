@@ -318,6 +318,39 @@ func TestText_MultiAuthor_CaseInsensitiveLoginMatch(t *testing.T) {
 	}
 }
 
+func TestText_MultiAuthor_BotSuffixMismatch(t *testing.T) {
+	// model.PR.Author stores the canonical login including the "[bot]" suffix
+	// (normalised at ingest by authorLogin in the github package). The render
+	// layer should match it with a plain case-insensitive comparison against
+	// the --author flag value, which also uses the suffixed form.
+	prs := []model.PR{
+		samplePR(model.PR{
+			Number: 9, Title: "bot: generated demo", Author: "github-actions[bot]",
+			HeadRefName: "standalone/bot-demo", BaseRefName: "main",
+		}),
+		samplePR(model.PR{
+			Number: 1, Title: "human PR", Author: "alice",
+			HeadRefName: "alice/feat", BaseRefName: "main",
+		}),
+	}
+	ctx := Context{
+		Color:       false,
+		OSC8:        false,
+		AuthorOrder: []string{"github-actions[bot]", "alice"},
+	}
+	out := mustFormat(t, Text{}, repoWith(prs, nil), ctx)
+
+	if !strings.Contains(out, "@github-actions[bot] · 1 PR") {
+		t.Errorf("want @github-actions[bot] · 1 PR; got:\n%s", out)
+	}
+	if !strings.Contains(out, "#9") {
+		t.Errorf("bot PR #9 must appear in output; got:\n%s", out)
+	}
+	if !strings.Contains(out, "@alice · 1 PR") {
+		t.Errorf("want @alice · 1 PR; got:\n%s", out)
+	}
+}
+
 func TestText_MultiAuthor_EmptyAuthorSectionOmitted(t *testing.T) {
 	// carol has no PRs — her section should not appear
 	prs := []model.PR{
