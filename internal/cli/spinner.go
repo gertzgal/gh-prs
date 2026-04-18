@@ -64,5 +64,5 @@ func (s *Spinner) Stop() {
 		close(s.stop)
 	}
 	<-s.done
-	fmt.Fprint(s.out, "\r\x1b[2K")
+	_, _ = fmt.Fprint(s.out, "\r\x1b[2K")
 }

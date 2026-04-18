@@ -68,7 +68,7 @@ func Execute(argv []string, env []string) int {
 	cmd.SetOut(os.Stdout)
 	cmd.SetErr(os.Stderr)
 	cmd.SetHelpFunc(func(_ *cobra.Command, _ []string) {
-		fmt.Fprint(os.Stdout, USAGE)
+		_, _ = fmt.Fprint(os.Stdout, USAGE)
 	})
 
 	if err := cmd.Execute(); err != nil {
