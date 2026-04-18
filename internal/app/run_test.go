@@ -9,16 +9,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gertzgal/gh-prs/internal/filter"
 	"github.com/gertzgal/gh-prs/internal/model"
 	"github.com/gertzgal/gh-prs/internal/render"
 )
 
 type stubClient struct {
-	repo *model.Repo
-	err  error
+	repo        *model.Repo
+	err         error
+	lastFilters filter.Set
 }
 
-func (c stubClient) FetchRepo(_ context.Context) (*model.Repo, error) {
+func (c *stubClient) FetchRepo(_ context.Context, filters filter.Set) (*model.Repo, error) {
+	c.lastFilters = filters
 	return c.repo, c.err
 }
 
@@ -82,7 +85,8 @@ func newHarness(overrides func(*Deps)) (Deps, *bytes.Buffer, *bytes.Buffer, *stu
 	text := &stubFormatter{label: "TEXT"}
 	d := Deps{
 		Flags:     Flags{},
-		Client:    stubClient{repo: baseRepo()},
+		Filters:   filter.Set{},
+		Client:    &stubClient{repo: baseRepo()},
 		Formatter: text,
 		FormatCtx: render.Context{},
 		Stdout:    stdout,
@@ -130,14 +134,14 @@ func TestRun_HappyPathMachine(t *testing.T) {
 func TestRun_EmptyPRsText(t *testing.T) {
 	text := &stubFormatter{label: "TEXT", panicOnCall: true}
 	d, stdout, _, _ := newHarness(func(d *Deps) {
-		d.Client = stubClient{repo: emptyRepo()}
+		d.Client = &stubClient{repo: emptyRepo()}
 		d.Formatter = text
 	})
 	code := Run(context.Background(), d)
 	if code != exitNoPRs {
 		t.Fatalf("exit = %d, want %d", code, exitNoPRs)
 	}
-	if !strings.Contains(stdout.String(), "No open PRs authored by @alice in acme/widget") {
+	if !strings.Contains(stdout.String(), "No open PRs matching the applied filters in acme/widget") {
 		t.Fatalf("stdout missing friendly message: %q", stdout.String())
 	}
 }
@@ -146,7 +150,7 @@ func TestRun_EmptyPRsMachine(t *testing.T) {
 	jsonF := &stubFormatter{label: "JSON"}
 	d, stdout, _, _ := newHarness(func(d *Deps) {
 		d.Flags.Machine = true
-		d.Client = stubClient{repo: emptyRepo()}
+		d.Client = &stubClient{repo: emptyRepo()}
 		d.Formatter = jsonF
 	})
 	code := Run(context.Background(), d)
@@ -163,7 +167,7 @@ func TestRun_EmptyPRsMachine(t *testing.T) {
 
 func TestRun_RepoNotFound(t *testing.T) {
 	d, _, stderr, _ := newHarness(func(d *Deps) {
-		d.Client = stubClient{err: model.ErrRepoNotFound}
+		d.Client = &stubClient{err: model.ErrRepoNotFound}
 	})
 	code := Run(context.Background(), d)
 	if code != exitNoRepo {
@@ -176,7 +180,7 @@ func TestRun_RepoNotFound(t *testing.T) {
 
 func TestRun_WrappedRepoNotFound(t *testing.T) {
 	d, _, stderr, _ := newHarness(func(d *Deps) {
-		d.Client = stubClient{err: fmt.Errorf("wrap: %w", model.ErrRepoNotFound)}
+		d.Client = &stubClient{err: fmt.Errorf("wrap: %w", model.ErrRepoNotFound)}
 	})
 	code := Run(context.Background(), d)
 	if code != exitNoRepo {
@@ -189,7 +193,7 @@ func TestRun_WrappedRepoNotFound(t *testing.T) {
 
 func TestRun_GhError(t *testing.T) {
 	d, _, stderr, _ := newHarness(func(d *Deps) {
-		d.Client = stubClient{err: &model.GhError{Msg: "bang", Stderr: "stderr body"}}
+		d.Client = &stubClient{err: &model.GhError{Msg: "bang", Stderr: "stderr body"}}
 	})
 	code := Run(context.Background(), d)
 	if code != exitGhError {
@@ -206,7 +210,7 @@ func TestRun_GhError(t *testing.T) {
 
 func TestRun_UnexpectedError(t *testing.T) {
 	d, _, stderr, _ := newHarness(func(d *Deps) {
-		d.Client = stubClient{err: errors.New("mystery")}
+		d.Client = &stubClient{err: errors.New("mystery")}
 	})
 	code := Run(context.Background(), d)
 	if code != exitGhError {
@@ -244,5 +248,81 @@ func TestRun_LatencyInjectedIntoFormatter(t *testing.T) {
 	_ = Run(context.Background(), d)
 	if text.lastCtx.LatencyMs != 450 {
 		t.Fatalf("formatter got latency = %d, want 450", text.lastCtx.LatencyMs)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Filter wiring tests
+// ---------------------------------------------------------------------------
+
+func TestRun_FiltersPassedToClient(t *testing.T) {
+	sc := &stubClient{repo: baseRepo()}
+	filters := filter.NewSet(
+		[]filter.QueryFilter{filter.NewAuthorFilter([]string{"alice"})},
+		nil,
+	)
+	d, _, _, _ := newHarness(func(d *Deps) {
+		d.Client = sc
+		d.Filters = filters
+	})
+	_ = Run(context.Background(), d)
+
+	// Verify the exact filter set the client received.
+	got := sc.lastFilters.QueryFragments()
+	if len(got) != 1 || got[0] != "author:alice" {
+		t.Fatalf("client received fragments %v, want [author:alice]", got)
+	}
+}
+
+// stubListFilter keeps only PRs whose Number is in the allow-list.
+type stubListFilter struct{ allow []int }
+
+func (f stubListFilter) Apply(prs []model.PR) []model.PR {
+	var out []model.PR
+	for _, pr := range prs {
+		for _, n := range f.allow {
+			if pr.Number == n {
+				out = append(out, pr)
+				break
+			}
+		}
+	}
+	return out
+}
+
+func TestRun_ListFilterApplied_ReducesPRs(t *testing.T) {
+	// baseRepo() has samplePR (#1). A list filter that allows only PR #99
+	// should produce an empty slice → exitNoPRs.
+	lf := stubListFilter{allow: []int{99}}
+	filters := filter.NewSet(nil, []filter.ListFilter{lf})
+	text := &stubFormatter{label: "TEXT", panicOnCall: true}
+
+	d, stdout, _, _ := newHarness(func(d *Deps) {
+		d.Filters = filters
+		d.Formatter = text
+	})
+	code := Run(context.Background(), d)
+	if code != exitNoPRs {
+		t.Fatalf("exit = %d, want exitNoPRs (%d)", code, exitNoPRs)
+	}
+	if !strings.Contains(stdout.String(), "No open PRs matching") {
+		t.Fatalf("stdout missing no-PRs message: %q", stdout.String())
+	}
+}
+
+func TestRun_ListFilterApplied_PassthroughWhenAllowed(t *testing.T) {
+	// Allow PR #1 (the samplePR) → formatter is called, returns success.
+	lf := stubListFilter{allow: []int{1}}
+	filters := filter.NewSet(nil, []filter.ListFilter{lf})
+
+	d, _, _, text := newHarness(func(d *Deps) {
+		d.Filters = filters
+	})
+	code := Run(context.Background(), d)
+	if code != exitSuccess {
+		t.Fatalf("exit = %d, want %d", code, exitSuccess)
+	}
+	if text.calls != 1 {
+		t.Fatalf("formatter calls = %d, want 1", text.calls)
 	}
 }
