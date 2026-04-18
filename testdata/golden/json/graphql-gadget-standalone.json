@@ -16,7 +16,9 @@
       "changedFiles": 4,
       "reviewDecision": "REVIEW_REQUIRED",
       "ciState": "FAILURE",
-      "mergeStateStatus": "BLOCKED"
+      "mergeStateStatus": "BLOCKED",
+      "stackId": null,
+      "stackPos": null
     },
     {
       "number": 2002,
@@ -30,7 +32,9 @@
       "changedFiles": 9,
       "reviewDecision": "REVIEW_REQUIRED",
       "ciState": "FAILURE",
-      "mergeStateStatus": "BLOCKED"
+      "mergeStateStatus": "BLOCKED",
+      "stackId": null,
+      "stackPos": null
     }
   ],
   "rateLimit": {

@@ -23,17 +23,21 @@ type Name string
 const (
 	NameText Name = "text"
 	NameJSON Name = "json"
+	NameTOON Name = "toon"
 )
 
 type Text struct{}
 type JSON struct{}
+type TOON struct{}
 
 var _ Formatter = Text{}
 var _ Formatter = JSON{}
+var _ Formatter = TOON{}
 
 func Formatters() map[Name]Formatter {
 	return map[Name]Formatter{
 		NameText: Text{},
 		NameJSON: JSON{},
+		NameTOON: TOON{},
 	}
 }

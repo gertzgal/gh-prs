@@ -33,22 +33,28 @@ type PR struct {
 	ReviewDecision   ReviewDecision `json:"reviewDecision"`
 	CiState          CiState        `json:"ciState"`
 	MergeStateStatus string         `json:"mergeStateStatus"`
+	// 1-based stack index, nil for standalone. Populated by stacks.Annotate.
+	StackID *int `json:"stackId"`
+	// "i/N" position within the stack (e.g. "2/3"), nil for standalone.
+	StackPos *string `json:"stackPos"`
 }
 
 func (p PR) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
-		Number           int    `json:"number"`
-		Title            string `json:"title"`
-		URL              string `json:"url"`
-		IsDraft          bool   `json:"isDraft"`
-		HeadRefName      string `json:"headRefName"`
-		BaseRefName      string `json:"baseRefName"`
-		Additions        int    `json:"additions"`
-		Deletions        int    `json:"deletions"`
-		ChangedFiles     int    `json:"changedFiles"`
-		ReviewDecision   any    `json:"reviewDecision"`
-		CiState          any    `json:"ciState"`
-		MergeStateStatus string `json:"mergeStateStatus"`
+		Number           int     `json:"number"`
+		Title            string  `json:"title"`
+		URL              string  `json:"url"`
+		IsDraft          bool    `json:"isDraft"`
+		HeadRefName      string  `json:"headRefName"`
+		BaseRefName      string  `json:"baseRefName"`
+		Additions        int     `json:"additions"`
+		Deletions        int     `json:"deletions"`
+		ChangedFiles     int     `json:"changedFiles"`
+		ReviewDecision   any     `json:"reviewDecision"`
+		CiState          any     `json:"ciState"`
+		MergeStateStatus string  `json:"mergeStateStatus"`
+		StackID          *int    `json:"stackId"`
+		StackPos         *string `json:"stackPos"`
 	}{
 		Number:           p.Number,
 		Title:            p.Title,
@@ -62,6 +68,8 @@ func (p PR) MarshalJSON() ([]byte, error) {
 		ReviewDecision:   nilIfEmpty(string(p.ReviewDecision)),
 		CiState:          nilIfEmpty(string(p.CiState)),
 		MergeStateStatus: p.MergeStateStatus,
+		StackID:          p.StackID,
+		StackPos:         p.StackPos,
 	})
 }
 
