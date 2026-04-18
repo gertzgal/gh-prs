@@ -41,13 +41,18 @@ fmt-check: ## Fail if any Go files are unformatted (matches CI)
 vet: ## Run go vet
 	go vet ./...
 
-lint: ## Run golangci-lint (requires golangci-lint on PATH)
-	golangci-lint run ./...
+lint: ## Run golangci-lint (auto-installs to GOPATH/bin if missing)
+	@command -v golangci-lint >/dev/null 2>&1 || { \
+	  echo "installing golangci-lint..."; \
+	  curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | \
+	    sh -s -- -b "$$(go env GOPATH)/bin" latest; \
+	}
+	@PATH="$$(go env GOPATH)/bin:$$PATH" golangci-lint run ./...
 
 check: fmt-check vet lint test ## Run the full CI gate locally
 
-install: build ## Install this repo as the `gh prs` extension (symlink)
-	gh extension install .
+install: build ## Build and install the `gh prs` extension (idempotent)
+	@gh extension list | grep -q '\bprs\b' || gh extension install .
 
 uninstall: ## Remove the locally installed `gh prs` extension
 	gh extension remove $(EXT_NAME)
