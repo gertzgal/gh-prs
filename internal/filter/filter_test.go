@@ -179,3 +179,126 @@ func TestSet_Apply_NilInput_Safe(t *testing.T) {
 		t.Fatalf("want nil, got %v", got)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// AuthorFilter — Label()
+// ---------------------------------------------------------------------------
+
+func TestAuthorFilter_Label_MeSentinel_ReturnsEmpty(t *testing.T) {
+	// @me alone must return "" so callers fall back to the viewer's real login.
+	f := filter.NewAuthorFilter([]string{"@me"})
+	if got := f.Label(); got != "" {
+		t.Fatalf("Label(@me): want empty string, got %q", got)
+	}
+}
+
+func TestAuthorFilter_Label_ExplicitMe_TypographicMe_ReturnsEmpty(t *testing.T) {
+	// Even when the user explicitly passes @me, the sentinel rule applies.
+	f := filter.NewAuthorFilter([]string{"@me"})
+	if got := f.Label(); got != "" {
+		t.Fatalf("Label(@me explicit): want empty string, got %q", got)
+	}
+}
+
+func TestAuthorFilter_Label_SingleLogin_PrefixedWithAt(t *testing.T) {
+	f := filter.NewAuthorFilter([]string{"alice"})
+	want := "@alice"
+	if got := f.Label(); got != want {
+		t.Fatalf("Label(alice): got %q, want %q", got, want)
+	}
+}
+
+func TestAuthorFilter_Label_LoginAlreadyHasAt_NotDoubled(t *testing.T) {
+	f := filter.NewAuthorFilter([]string{"@alice"})
+	want := "@alice"
+	if got := f.Label(); got != want {
+		t.Fatalf("Label(@alice): got %q, want %q (@ should not be doubled)", got, want)
+	}
+}
+
+func TestAuthorFilter_Label_MultipleLogins_CommaSeparated(t *testing.T) {
+	f := filter.NewAuthorFilter([]string{"alice", "bob"})
+	want := "@alice, @bob"
+	if got := f.Label(); got != want {
+		t.Fatalf("Label(alice,bob): got %q, want %q", got, want)
+	}
+}
+
+func TestAuthorFilter_Label_EmptyLogins_ReturnsEmpty(t *testing.T) {
+	f := filter.NewAuthorFilter(nil)
+	if got := f.Label(); got != "" {
+		t.Fatalf("Label(nil): want empty string, got %q", got)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Set.Label() — composite label
+// ---------------------------------------------------------------------------
+
+func TestSet_Label_ZeroValue_ReturnsEmpty(t *testing.T) {
+	var s filter.Set
+	if got := s.Label(); got != "" {
+		t.Fatalf("zero Set Label: want empty, got %q", got)
+	}
+}
+
+func TestSet_Label_MeOnly_ReturnsEmpty(t *testing.T) {
+	// Default invocation (@me) must yield "" so repoHeader falls back.
+	s := filter.NewSet(
+		[]filter.QueryFilter{filter.NewAuthorFilter([]string{"@me"})},
+		nil,
+	)
+	if got := s.Label(); got != "" {
+		t.Fatalf("Set.Label(@me): want empty, got %q", got)
+	}
+}
+
+func TestSet_Label_SingleAuthor(t *testing.T) {
+	s := filter.NewSet(
+		[]filter.QueryFilter{filter.NewAuthorFilter([]string{"alice"})},
+		nil,
+	)
+	want := "@alice"
+	if got := s.Label(); got != want {
+		t.Fatalf("Set.Label: got %q, want %q", got, want)
+	}
+}
+
+func TestSet_Label_MultipleAuthors(t *testing.T) {
+	s := filter.NewSet(
+		[]filter.QueryFilter{filter.NewAuthorFilter([]string{"alice", "bob"})},
+		nil,
+	)
+	want := "@alice, @bob"
+	if got := s.Label(); got != want {
+		t.Fatalf("Set.Label: got %q, want %q", got, want)
+	}
+}
+
+func TestSet_Label_FilterWithoutLabeler_Ignored(t *testing.T) {
+	// A QueryFilter that does not implement Labeler contributes nothing to Label.
+	// AuthorFilter{@me} is a Labeler that returns "" — verify the zero Set
+	// (no Labelers at all) also returns "".
+	s := filter.NewSet(
+		[]filter.QueryFilter{filter.NewAuthorFilter([]string{"@me"})},
+		nil,
+	)
+	if got := s.Label(); got != "" {
+		t.Fatalf("Set.Label(@me only): want empty, got %q", got)
+	}
+}
+
+func TestSet_Label_MultipleFilters_JoinedWithDot(t *testing.T) {
+	// Two author filters (unusual but valid) — labels joined with " · ".
+	s := filter.NewSet(
+		[]filter.QueryFilter{
+			filter.NewAuthorFilter([]string{"alice"}),
+			filter.NewAuthorFilter([]string{"bob"}),
+		},
+		nil,
+	)
+	want := "@alice · @bob"
+	if got := s.Label(); got != want {
+		t.Fatalf("Set.Label (two filters): got %q, want %q", got, want)
+	}
+}

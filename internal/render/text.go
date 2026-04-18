@@ -84,8 +84,12 @@ func renderStack(node *stacks.Node, opts renderOpts) []string {
 	return lines
 }
 
-func repoHeader(repo *model.Repo, opts renderOpts) string {
-	text := fmt.Sprintf("%s/%s · %s · @%s", repo.Owner, repo.Name, repo.DefaultBranch, repo.ViewerLogin)
+func repoHeader(repo *model.Repo, ctx Context, opts renderOpts) string {
+	subject := ctx.FilterLabel
+	if subject == "" {
+		subject = "@" + repo.ViewerLogin
+	}
+	text := fmt.Sprintf("%s/%s · %s · %s", repo.Owner, repo.Name, repo.DefaultBranch, subject)
 	return fgGray(text, opts.color)
 }
 
@@ -104,7 +108,7 @@ func (Text) Format(repo *model.Repo, ctx Context) (string, error) {
 	opts := renderOpts{color: ctx.Color, osc8: ctx.OSC8}
 	g := stacks.Group(repo.PRs, repo.DefaultBranch)
 	var out []string
-	out = append(out, "", repoHeader(repo, opts), "")
+	out = append(out, "", repoHeader(repo, ctx, opts), "")
 
 	stackedCount := 0
 	for _, s := range g.Stacks {

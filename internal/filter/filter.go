@@ -26,6 +26,20 @@ type ListFilter interface {
 	Apply(prs []model.PR) []model.PR
 }
 
+// Labeler is an optional interface a filter may implement to contribute a
+// short human-readable label for display in UI contexts (e.g. the header).
+//
+// Returning an empty string signals "nothing to show" — the caller falls back
+// to its own default (e.g. the viewer's real login). This is the designated
+// mechanism for the @me sentinel: AuthorFilter{["@me"]}.Label() == "".
+//
+// Labeler is intentionally separate from QueryFilter and ListFilter so that
+// filters which have no meaningful display label (e.g. an internal date-range
+// filter) don't have to implement it.
+type Labeler interface {
+	Label() string
+}
+
 // Set is an immutable, zero-safe collection of filters to apply to a
 // PR fetch operation. The zero value applies no filtering.
 type Set struct {
@@ -60,4 +74,29 @@ func (s Set) Apply(prs []model.PR) []model.PR {
 		prs = f.Apply(prs)
 	}
 	return prs
+}
+
+// Label collects non-empty labels from every QueryFilter that implements
+// Labeler and joins them with " · ".
+//
+// Order is deterministic because NewSet preserves insertion order and the
+// CLI constructs the Set in a fixed sequence (author first, future filters
+// appended). No sorting is applied: the construction site owns the order.
+func (s Set) Label() string {
+	var parts []string
+	for _, q := range s.queries {
+		if l, ok := q.(Labeler); ok {
+			if v := l.Label(); v != "" {
+				parts = append(parts, v)
+			}
+		}
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	result := parts[0]
+	for _, p := range parts[1:] {
+		result += " · " + p
+	}
+	return result
 }
