@@ -9,8 +9,12 @@ import (
 
 	"github.com/gertzgal/gh-prs/internal/github"
 	"github.com/gertzgal/gh-prs/internal/model"
+	"github.com/gertzgal/gh-prs/internal/stacks"
 )
 
+// loadRepo mirrors the production fetch path: read a fixture then annotate
+// PRs with stack topology, exactly as app.Run does. Every formatter thus
+// receives the same pre-processed shape it sees in real invocations.
 func loadRepo(t *testing.T, name string) *model.Repo {
 	t.Helper()
 	raw, err := os.ReadFile(filepath.Join("..", "..", "testdata", "fixtures", name+".json"))
@@ -21,12 +25,24 @@ func loadRepo(t *testing.T, name string) *model.Repo {
 	if err != nil {
 		t.Fatal(err)
 	}
+	repo.PRs = stacks.Annotate(repo.PRs, repo.DefaultBranch)
 	return repo
+}
+
+// mustFormat runs the formatter and fails the test on any error. Used in
+// happy-path tests where the error is a bug in the formatter, not test input.
+func mustFormat(t *testing.T, f Formatter, repo *model.Repo, ctx Context) string {
+	t.Helper()
+	out, err := f.Format(repo, ctx)
+	if err != nil {
+		t.Fatalf("Format: unexpected error: %v", err)
+	}
+	return out
 }
 
 func TestJSONFormatter_Valid(t *testing.T) {
 	repo := loadRepo(t, "graphql-widget-4-stack")
-	out := JSON{}.Format(repo, Context{Color: false, OSC8: false, LatencyMs: 123})
+	out := mustFormat(t, JSON{}, repo, Context{Color: false, OSC8: false, LatencyMs: 123})
 	var parsed any
 	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
 		t.Fatalf("output is not valid JSON: %v", err)
@@ -35,7 +51,7 @@ func TestJSONFormatter_Valid(t *testing.T) {
 
 func TestJSONFormatter_LatencyMerged(t *testing.T) {
 	repo := loadRepo(t, "graphql-widget-4-stack")
-	out := JSON{}.Format(repo, Context{Color: false, OSC8: false, LatencyMs: 500})
+	out := mustFormat(t, JSON{}, repo, Context{Color: false, OSC8: false, LatencyMs: 500})
 	var parsed map[string]any
 	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
 		t.Fatal(err)
@@ -51,7 +67,7 @@ func TestJSONFormatter_LatencyMerged(t *testing.T) {
 
 func TestJSONFormatter_KeyShape(t *testing.T) {
 	repo := loadRepo(t, "graphql-widget-4-stack")
-	out := JSON{}.Format(repo, Context{Color: false, OSC8: false, LatencyMs: 0})
+	out := mustFormat(t, JSON{}, repo, Context{Color: false, OSC8: false, LatencyMs: 0})
 	var parsed map[string]any
 	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
 		t.Fatal(err)
@@ -74,8 +90,8 @@ func TestJSONFormatter_KeyShape(t *testing.T) {
 
 func TestJSONFormatter_ColorDoesNotAffect(t *testing.T) {
 	repo := loadRepo(t, "graphql-widget-4-stack")
-	withColor := JSON{}.Format(repo, Context{Color: true, OSC8: true, LatencyMs: 42})
-	withoutColor := JSON{}.Format(repo, Context{Color: false, OSC8: false, LatencyMs: 42})
+	withColor := mustFormat(t, JSON{}, repo, Context{Color: true, OSC8: true, LatencyMs: 42})
+	withoutColor := mustFormat(t, JSON{}, repo, Context{Color: false, OSC8: false, LatencyMs: 42})
 	if withColor != withoutColor {
 		t.Errorf("color flag affected output:\nwith=%q\nwithout=%q", withColor, withoutColor)
 	}

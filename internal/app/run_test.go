@@ -25,17 +25,21 @@ func (c stubClient) FetchRepo(_ context.Context) (*model.Repo, error) {
 type stubFormatter struct {
 	label       string
 	panicOnCall bool
+	err         error
 	lastCtx     render.Context
 	calls       int
 }
 
-func (f *stubFormatter) Format(_ *model.Repo, ctx render.Context) string {
+func (f *stubFormatter) Format(_ *model.Repo, ctx render.Context) (string, error) {
 	if f.panicOnCall {
 		panic(fmt.Sprintf("%s formatter should not have been invoked", f.label))
 	}
 	f.calls++
 	f.lastCtx = ctx
-	return fmt.Sprintf("%s:latency=%d", f.label, ctx.LatencyMs)
+	if f.err != nil {
+		return "", f.err
+	}
+	return fmt.Sprintf("%s:latency=%d", f.label, ctx.LatencyMs), nil
 }
 
 var samplePR = model.PR{
@@ -210,6 +214,24 @@ func TestRun_UnexpectedError(t *testing.T) {
 	}
 	if !strings.Contains(stderr.String(), "gh prs: unexpected error: mystery") {
 		t.Fatalf("stderr unexpected: %q", stderr.String())
+	}
+}
+
+func TestRun_FormatErrorSurfacedToStderr(t *testing.T) {
+	boom := errors.New("encoder boom")
+	text := &stubFormatter{label: "TEXT", err: boom}
+	d, stdout, stderr, _ := newHarness(func(d *Deps) {
+		d.Formatter = text
+	})
+	code := Run(context.Background(), d)
+	if code != exitGhError {
+		t.Fatalf("exit = %d, want %d", code, exitGhError)
+	}
+	if !strings.Contains(stderr.String(), "gh prs: format: encoder boom") {
+		t.Fatalf("stderr missing format error: %q", stderr.String())
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("stdout should be empty on format error, got %q", stdout.String())
 	}
 }
 

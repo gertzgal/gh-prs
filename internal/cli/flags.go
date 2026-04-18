@@ -1,19 +1,19 @@
 package cli
 
-import "strings"
+import (
+	"strings"
 
-// Output format names recognized by the CLI. Kept in sync with render.Name*.
-const (
-	FormatText = "text"
-	FormatJSON = "json"
-	FormatTOON = "toon"
+	"github.com/gertzgal/gh-prs/internal/render"
 )
 
-// DefaultFormat is the human-readable terminal output.
-const DefaultFormat = FormatText
+// DefaultFormat is the human-readable terminal output selected when neither
+// --format nor GH_PRS_FORMAT is provided.
+const DefaultFormat = render.FormatText
 
 type Flags struct {
-	// Format is one of text|json|toon. Empty string resolves to DefaultFormat.
+	// Format is the canonical name of the chosen output format. Never empty:
+	// composeFlags resolves missing input to DefaultFormat. Validity is
+	// checked separately via render.Lookup in Execute.
 	Format   string
 	Debug    bool
 	Help     bool
@@ -25,12 +25,7 @@ type Flags struct {
 // Machine reports whether the selected format is for machine consumption
 // (json/toon). Used to suppress TTY-oriented UX like the spinner and the
 // "No open PRs" human message.
-func (f Flags) Machine() bool { return f.Format != FormatText }
-
-// validFormat reports whether s is one of the supported format names.
-func validFormat(s string) bool {
-	return s == FormatText || s == FormatJSON || s == FormatTOON
-}
+func (f Flags) Machine() bool { return f.Format != render.FormatText }
 
 // composeFlags merges cobra-parsed flags with env. Env overrides:
 //   - DEBUG=<non-empty>          enables --debug

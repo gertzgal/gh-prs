@@ -100,7 +100,7 @@ func sectionLabel(kind string, n int, opts renderOpts) string {
 	return "  " + fgGray(fmt.Sprintf("%s · %d %s", kind, n, pluralPR(n)), opts.color)
 }
 
-func (Text) Format(repo *model.Repo, ctx Context) string {
+func (Text) Format(repo *model.Repo, ctx Context) (string, error) {
 	opts := renderOpts{color: ctx.Color, osc8: ctx.OSC8}
 	g := stacks.Group(repo.PRs, repo.DefaultBranch)
 	var out []string
@@ -140,5 +140,5 @@ func (Text) Format(repo *model.Repo, ctx Context) string {
 		}
 		out = append(out, "  "+fgGray(strings.Join(footer, " · "), opts.color))
 	}
-	return strings.Join(out, "\n") + "\n"
+	return strings.Join(out, "\n") + "\n", nil
 }

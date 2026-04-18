@@ -1,6 +1,10 @@
 package cli
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/gertzgal/gh-prs/internal/render"
+)
 
 func TestComposeFlags_DebugFromFlag(t *testing.T) {
 	got := composeFlags("", true, false, "", false, map[string]string{})
@@ -62,8 +66,8 @@ func TestComposeFlags_CacheTTLFromEnv(t *testing.T) {
 
 func TestComposeFlags_FormatDefaultsToText(t *testing.T) {
 	got := composeFlags("", false, false, "", false, map[string]string{})
-	if got.Format != FormatText {
-		t.Errorf("Format: want %q default, got %q", FormatText, got.Format)
+	if got.Format != render.FormatText {
+		t.Errorf("Format: want %q default, got %q", render.FormatText, got.Format)
 	}
 	if got.Machine() {
 		t.Errorf("Machine(): want false for text, got true")
@@ -71,7 +75,7 @@ func TestComposeFlags_FormatDefaultsToText(t *testing.T) {
 }
 
 func TestComposeFlags_FormatFromFlag(t *testing.T) {
-	for _, name := range []string{FormatText, FormatJSON, FormatTOON} {
+	for _, name := range []string{render.FormatText, render.FormatJSON, render.FormatTOON} {
 		got := composeFlags(name, false, false, "", false, map[string]string{})
 		if got.Format != name {
 			t.Errorf("Format: want %q, got %q", name, got.Format)
@@ -81,43 +85,30 @@ func TestComposeFlags_FormatFromFlag(t *testing.T) {
 
 func TestComposeFlags_FormatFromEnv(t *testing.T) {
 	got := composeFlags("", false, false, "", false, map[string]string{"GH_PRS_FORMAT": "toon"})
-	if got.Format != FormatTOON {
-		t.Errorf("Format: want %q from env, got %q", FormatTOON, got.Format)
+	if got.Format != render.FormatTOON {
+		t.Errorf("Format: want %q from env, got %q", render.FormatTOON, got.Format)
 	}
 }
 
 func TestComposeFlags_FormatFlagWinsOverEnv(t *testing.T) {
 	got := composeFlags("json", false, false, "", false, map[string]string{"GH_PRS_FORMAT": "toon"})
-	if got.Format != FormatJSON {
-		t.Errorf("Format: flag should beat env, want %q, got %q", FormatJSON, got.Format)
+	if got.Format != render.FormatJSON {
+		t.Errorf("Format: flag should beat env, want %q, got %q", render.FormatJSON, got.Format)
 	}
 }
 
 func TestComposeFlags_FormatCaseInsensitive(t *testing.T) {
 	got := composeFlags("  JSON  ", false, false, "", false, map[string]string{})
-	if got.Format != FormatJSON {
-		t.Errorf("Format: want normalised %q, got %q", FormatJSON, got.Format)
+	if got.Format != render.FormatJSON {
+		t.Errorf("Format: want normalised %q, got %q", render.FormatJSON, got.Format)
 	}
 }
 
 func TestComposeFlags_MachineTrueForJSONandTOON(t *testing.T) {
-	for _, name := range []string{FormatJSON, FormatTOON} {
+	for _, name := range []string{render.FormatJSON, render.FormatTOON} {
 		got := composeFlags(name, false, false, "", false, map[string]string{})
 		if !got.Machine() {
 			t.Errorf("Machine(): want true for %q, got false", name)
-		}
-	}
-}
-
-func TestValidFormat(t *testing.T) {
-	for _, name := range []string{FormatText, FormatJSON, FormatTOON} {
-		if !validFormat(name) {
-			t.Errorf("validFormat(%q) = false, want true", name)
-		}
-	}
-	for _, name := range []string{"", "yaml", "TEXT", "tsv"} {
-		if validFormat(name) {
-			t.Errorf("validFormat(%q) = true, want false", name)
 		}
 	}
 }

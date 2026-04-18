@@ -58,8 +58,8 @@ func Execute(argv []string, env []string) int {
 		SilenceErrors: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			flags := composeFlags(cobraFormat, cobraDebug, cobraNoCache, cobraCacheTTL, cobraStats, envMap)
-			if !validFormat(flags.Format) {
-				return fmt.Errorf("unknown --format %q (want text|json|toon)", flags.Format)
+			if _, ok := render.Lookup(flags.Format); !ok {
+				return fmt.Errorf("unknown --format %q (want %s)", flags.Format, strings.Join(render.Names(), "|"))
 			}
 			runExit = runOnce(flags, envMap, os.Stdout, os.Stderr)
 			return nil
@@ -105,7 +105,8 @@ func runOnce(flags Flags, env map[string]string, stdout, stderr io.Writer) int {
 	spinner.Start()
 	defer spinner.Stop()
 
-	formatter := render.Formatters()[formatNameFor(flags.Format)]
+	// Execute already validated via render.Lookup; safe to ignore ok.
+	formatter, _ := render.Lookup(flags.Format)
 
 	return app.Run(context.Background(), app.Deps{
 		Flags:     app.Flags{Machine: machine},
@@ -121,19 +122,6 @@ func runOnce(flags Flags, env map[string]string, stdout, stderr io.Writer) int {
 		Stderr: stderr,
 		Now:    time.Now,
 	})
-}
-
-// formatNameFor maps a CLI format string to the render.Name key. validFormat
-// is assumed to have already passed.
-func formatNameFor(format string) render.Name {
-	switch format {
-	case FormatJSON:
-		return render.NameJSON
-	case FormatTOON:
-		return render.NameTOON
-	default:
-		return render.NameText
-	}
 }
 
 // buildClientOptions converts CLI flags + env into github.Options. Debug logs

@@ -28,7 +28,7 @@ func TestGoldenText(t *testing.T) {
 	for _, c := range goldenCases {
 		t.Run(c.fixture+c.suffix, func(t *testing.T) {
 			repo := loadRepo(t, c.fixture)
-			got := Text{}.Format(repo, Context{Color: c.color, OSC8: c.osc8, LatencyMs: 0, ShowStats: true})
+			got := mustFormat(t, Text{}, repo, Context{Color: c.color, OSC8: c.osc8, LatencyMs: 0, ShowStats: true})
 			path := filepath.Join("..", "..", "testdata", "golden", "text", c.fixture+c.suffix+".txt")
 			checkGolden(t, path, []byte(got))
 		})
@@ -42,7 +42,7 @@ func TestGoldenJSON(t *testing.T) {
 		}
 		t.Run(c.fixture, func(t *testing.T) {
 			repo := loadRepo(t, c.fixture)
-			got := JSON{}.Format(repo, Context{Color: false, OSC8: false, LatencyMs: 0})
+			got := mustFormat(t, JSON{}, repo, Context{Color: false, OSC8: false, LatencyMs: 0})
 			path := filepath.Join("..", "..", "testdata", "golden", "json", c.fixture+".json")
 			checkGolden(t, path, []byte(got))
 		})
@@ -56,7 +56,7 @@ func TestGoldenTOON(t *testing.T) {
 		}
 		t.Run(c.fixture, func(t *testing.T) {
 			repo := loadRepo(t, c.fixture)
-			got := TOON{}.Format(repo, Context{Color: false, OSC8: false, LatencyMs: 0})
+			got := mustFormat(t, TOON{}, repo, Context{Color: false, OSC8: false, LatencyMs: 0})
 			path := filepath.Join("..", "..", "testdata", "golden", "toon", c.fixture+".toon")
 			checkGolden(t, path, []byte(got))
 		})
