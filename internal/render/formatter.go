@@ -6,6 +6,12 @@ type Context struct {
 	Color     bool
 	OSC8      bool
 	LatencyMs int
+	// ShowStats toggles the compact stats footer ("Nms · ● Npt · N remaining").
+	// Off by default: the line is noise for the common case and always visible
+	// via `gh prs --stats`. Only consulted by the text formatter; the JSON
+	// formatter always emits RateLimit as a structured field for machine
+	// consumers regardless.
+	ShowStats bool
 }
 
 type Formatter interface {

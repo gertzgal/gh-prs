@@ -18,7 +18,7 @@ import (
 
 // USAGE reproduces the TS src/cli-args.ts USAGE constant byte-for-byte, plus
 // the new perf-related flags added in v0.2.
-const USAGE = `Usage: gh prs [--json] [--debug] [--no-cache] [--cache-ttl <dur>] [--help]
+const USAGE = `Usage: gh prs [--json] [--debug] [--no-cache] [--cache-ttl <dur>] [--stats] [--help]
 
   --json           Emit the fetched repo + PRs as JSON to stdout. No colors, no spinner.
   --debug          Log the actual GraphQL request + response (URL, headers, body, timing)
@@ -28,6 +28,9 @@ const USAGE = `Usage: gh prs [--json] [--debug] [--no-cache] [--cache-ttl <dur>]
                    Also honored via GH_PRS_NO_CACHE=1.
   --cache-ttl <d>  Cache TTL (Go duration: "60s", "2m", "10m"). Default 60s.
                    Also honored via GH_PRS_CACHE_TTL.
+  --stats          Show the footer with request latency, GraphQL query cost,
+                   and rate-limit remaining. Hidden by default.
+                   Also honored via GH_PRS_STATS=1.
   --help           Show this help.
 
 Cache lives in $XDG_CACHE_HOME/gh-prs/ (or platform equivalent) and is keyed by
@@ -41,7 +44,7 @@ Exit codes: 0 success · 1 gh/network failure · 2 not in a GitHub repo · 3 no 
 // Call site: cmd/gh-prs/main.go -> os.Exit(cli.Execute(os.Args[1:], os.Environ()))
 func Execute(argv []string, env []string) int {
 	envMap := envSliceToMap(env)
-	var cobraJSON, cobraDebug, cobraNoCache bool
+	var cobraJSON, cobraDebug, cobraNoCache, cobraStats bool
 	var cobraCacheTTL string
 	runExit := ExitSuccess
 
@@ -51,7 +54,7 @@ func Execute(argv []string, env []string) int {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			flags := composeFlags(cobraJSON, cobraDebug, cobraNoCache, cobraCacheTTL, envMap)
+			flags := composeFlags(cobraJSON, cobraDebug, cobraNoCache, cobraCacheTTL, cobraStats, envMap)
 			runExit = runOnce(flags, envMap, os.Stdout, os.Stderr)
 			return nil
 		},
@@ -61,6 +64,7 @@ func Execute(argv []string, env []string) int {
 	cmd.Flags().BoolVar(&cobraDebug, "debug", false, "Log actual GraphQL request/response to stderr (also via DEBUG=1)")
 	cmd.Flags().BoolVar(&cobraNoCache, "no-cache", false, "Skip the disk cache (also via GH_PRS_NO_CACHE=1)")
 	cmd.Flags().StringVar(&cobraCacheTTL, "cache-ttl", "", "Cache TTL (e.g. 60s, 2m). Default 60s.")
+	cmd.Flags().BoolVar(&cobraStats, "stats", false, "Show latency + GraphQL cost + rate-limit footer (also via GH_PRS_STATS=1)")
 	cmd.SetOut(os.Stdout)
 	cmd.SetErr(os.Stderr)
 	cmd.SetHelpFunc(func(_ *cobra.Command, _ []string) {
@@ -107,6 +111,7 @@ func runOnce(flags Flags, env map[string]string, stdout, stderr io.Writer) int {
 			Color:     ShouldColor(env, stdoutIsTTY),
 			OSC8:      ShouldOSC8(stdoutIsTTY),
 			LatencyMs: 0,
+			ShowStats: flags.Stats,
 		},
 		Stdout: stdout,
 		Stderr: stderr,

@@ -9,13 +9,15 @@ type Flags struct {
 	NoCache bool
 	// CacheTTL is the raw string value (e.g. "60s", "2m"). Parsed by github.ParseCacheTTL.
 	CacheTTL string
+	Stats    bool
 }
 
 // composeFlags merges cobra-parsed flags with env. Env overrides:
 //   - DEBUG=<non-empty>       enables --debug
 //   - GH_PRS_NO_CACHE=<truthy> enables --no-cache
 //   - GH_PRS_CACHE_TTL=<dur>  sets cache TTL if --cache-ttl not passed
-func composeFlags(cobraJSON, cobraDebug, cobraNoCache bool, cobraCacheTTL string, env map[string]string) Flags {
+//   - GH_PRS_STATS=<truthy>    enables --stats
+func composeFlags(cobraJSON, cobraDebug, cobraNoCache bool, cobraCacheTTL string, cobraStats bool, env map[string]string) Flags {
 	debug := cobraDebug
 	if !debug {
 		if v, ok := env["DEBUG"]; ok && v != "" {
@@ -35,5 +37,12 @@ func composeFlags(cobraJSON, cobraDebug, cobraNoCache bool, cobraCacheTTL string
 		ttl = env["GH_PRS_CACHE_TTL"]
 	}
 
-	return Flags{JSON: cobraJSON, Debug: debug, NoCache: noCache, CacheTTL: ttl}
+	stats := cobraStats
+	if !stats {
+		if v, ok := env["GH_PRS_STATS"]; ok && truthyFlag(v, ok) {
+			stats = true
+		}
+	}
+
+	return Flags{JSON: cobraJSON, Debug: debug, NoCache: noCache, CacheTTL: ttl, Stats: stats}
 }

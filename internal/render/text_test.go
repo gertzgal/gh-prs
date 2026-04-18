@@ -134,7 +134,7 @@ func TestText_BoldLeadOnly(t *testing.T) {
 }
 
 func TestText_FooterNilRateLimit(t *testing.T) {
-	out := Text{}.Format(repoWith(nil, nil), Context{Color: false, OSC8: false, LatencyMs: 7})
+	out := Text{}.Format(repoWith(nil, nil), Context{Color: false, OSC8: false, LatencyMs: 7, ShowStats: true})
 	if !strings.Contains(out, "  7ms\n") {
 		t.Errorf("want bare footer 7ms; got:\n%s", out)
 	}
@@ -152,8 +152,20 @@ func TestText_FooterNilRateLimit(t *testing.T) {
 func TestText_FooterWithRateLimit(t *testing.T) {
 	rl := &model.RateLimit{Cost: 1, Remaining: 4655, ResetAt: "2026-04-17T20:00:00Z"}
 	prs := []model.PR{samplePR(model.PR{})}
-	out := Text{}.Format(repoWith(prs, rl), Context{Color: false, OSC8: false, LatencyMs: 1408})
+	out := Text{}.Format(repoWith(prs, rl), Context{Color: false, OSC8: false, LatencyMs: 1408, ShowStats: true})
 	if !strings.Contains(out, "  1408ms · ● 1pt · 4655 remaining") {
 		t.Errorf("want compact footer; got:\n%s", out)
+	}
+}
+
+func TestText_FooterHiddenByDefault(t *testing.T) {
+	rl := &model.RateLimit{Cost: 1, Remaining: 4655, ResetAt: "2026-04-17T20:00:00Z"}
+	prs := []model.PR{samplePR(model.PR{})}
+	out := Text{}.Format(repoWith(prs, rl), Context{Color: false, OSC8: false, LatencyMs: 1408})
+
+	for _, needle := range []string{"1408ms", "1pt", "4655 remaining", "●"} {
+		if strings.Contains(out, needle) {
+			t.Errorf("footer leaked without ShowStats: found %q in:\n%s", needle, out)
+		}
 	}
 }

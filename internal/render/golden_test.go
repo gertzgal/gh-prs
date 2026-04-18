@@ -28,7 +28,7 @@ func TestGoldenText(t *testing.T) {
 	for _, c := range goldenCases {
 		t.Run(c.fixture+c.suffix, func(t *testing.T) {
 			repo := loadRepo(t, c.fixture)
-			got := Text{}.Format(repo, Context{Color: c.color, OSC8: c.osc8, LatencyMs: 0})
+			got := Text{}.Format(repo, Context{Color: c.color, OSC8: c.osc8, LatencyMs: 0, ShowStats: true})
 			path := filepath.Join("..", "..", "testdata", "golden", "text", c.fixture+c.suffix+".txt")
 			checkGolden(t, path, []byte(got))
 		})
