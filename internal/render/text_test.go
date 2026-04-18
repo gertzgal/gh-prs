@@ -319,13 +319,13 @@ func TestText_MultiAuthor_CaseInsensitiveLoginMatch(t *testing.T) {
 }
 
 func TestText_MultiAuthor_BotSuffixMismatch(t *testing.T) {
-	// GitHub's GraphQL API returns the login of bot/app authors without the
-	// "[bot]" suffix (e.g. "github-actions" instead of "github-actions[bot]").
-	// The CLI flag naturally uses the full form that GitHub surfaces in the UI.
-	// groupByAuthor must match them via botNorm so the section is populated.
+	// model.PR.Author stores the canonical login including the "[bot]" suffix
+	// (normalised at ingest by authorLogin in the github package). The render
+	// layer should match it with a plain case-insensitive comparison against
+	// the --author flag value, which also uses the suffixed form.
 	prs := []model.PR{
 		samplePR(model.PR{
-			Number: 9, Title: "bot: generated demo", Author: "github-actions",
+			Number: 9, Title: "bot: generated demo", Author: "github-actions[bot]",
 			HeadRefName: "standalone/bot-demo", BaseRefName: "main",
 		}),
 		samplePR(model.PR{

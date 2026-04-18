@@ -8,18 +8,9 @@ import (
 	"github.com/gertzgal/gh-prs/internal/stacks"
 )
 
-// botNorm normalises a GitHub login for bot-author matching.
-//
-// GitHub's GraphQL API returns the login of an app/bot user without the
-// "[bot]" suffix (e.g. "github-actions" instead of "github-actions[bot]"),
-// while GitHub's search API and users on the CLI naturally use the suffixed
-// form.  Stripping the suffix on both sides lets --author github-actions[bot]
-// match PRs whose Author field comes back as "github-actions" from GraphQL.
-func botNorm(login string) string {
-	lower := strings.ToLower(login)
-	lower = strings.TrimSuffix(lower, "[bot]")
-	return lower
-}
+// lowerKey normalises a login for case-insensitive section matching.
+// GitHub logins are case-preserving but comparison is case-insensitive.
+func lowerKey(s string) string { return strings.ToLower(s) }
 
 type rowLayout struct {
 	titlePrefix  string
@@ -138,15 +129,15 @@ func groupByAuthor(g stacks.Grouped, authorOrder []string, viewerLogin string) [
 			login = viewerLogin
 		}
 		sections[i] = authorSection{Login: login}
-		idx[botNorm(login)] = i
+		idx[lowerKey(login)] = i
 	}
 	for _, node := range g.Stacks {
-		if i, ok := idx[botNorm(node.PR.Author)]; ok {
+		if i, ok := idx[lowerKey(node.PR.Author)]; ok {
 			sections[i].Stacks = append(sections[i].Stacks, node)
 		}
 	}
 	for _, pr := range g.Standalone {
-		if i, ok := idx[botNorm(pr.Author)]; ok {
+		if i, ok := idx[lowerKey(pr.Author)]; ok {
 			sections[i].Standalone = append(sections[i].Standalone, pr)
 		}
 	}

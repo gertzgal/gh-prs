@@ -33,7 +33,8 @@ type prSearchQuery struct {
 				ReviewDecision   string
 				MergeStateStatus string
 				Author           struct {
-					Login string
+					Login    string
+					Typename string `graphql:"__typename"`
 				}
 				Commits struct {
 					Nodes []struct {
@@ -47,6 +48,20 @@ type prSearchQuery struct {
 			} `graphql:"... on PullRequest"`
 		}
 	} `graphql:"search(query: $q, type: ISSUE, first: 50)"`
+}
+
+// authorLogin returns the canonical GitHub login for a PR author.
+//
+// GitHub's GraphQL API returns the login of Bot actors without the "[bot]"
+// suffix (e.g. "github-actions" instead of "github-actions[bot]"), while
+// every other GitHub surface — the web UI, the REST search API, and the
+// --author flag — uses the suffixed form. Appending it when __typename is
+// "Bot" makes model.PR.Author consistent with what users type and see.
+func authorLogin(login, typename string) string {
+	if typename == "Bot" {
+		return login + "[bot]"
+	}
+	return login
 }
 
 func translateQueryResult(q *prSearchQuery, owner, name string) *model.Repo {
@@ -75,7 +90,7 @@ func translateQueryResult(q *prSearchQuery, owner, name string) *model.Repo {
 			ReviewDecision:   model.ReviewDecision(node.ReviewDecision),
 			CiState:          ci,
 			MergeStateStatus: node.MergeStateStatus,
-			Author:           node.Author.Login,
+			Author:           authorLogin(node.Author.Login, node.Author.Typename),
 		})
 	}
 
