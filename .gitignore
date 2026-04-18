@@ -9,6 +9,7 @@
 
 # Internal planning/design docs — not part of the published repo
 /planning/
+/docs/superpowers/
 
 # OS cruft
 .DS_Store
