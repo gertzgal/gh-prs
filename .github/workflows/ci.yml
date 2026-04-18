@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,17 +20,11 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: gofmt
+      - name: install golangci-lint
         run: |
-          unformatted=$(gofmt -l .)
-          if [ -n "$unformatted" ]; then
-            echo "Unformatted files:"
-            echo "$unformatted"
-            exit 1
-          fi
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | \
+            sh -s -- -b "$(go env GOPATH)/bin" latest
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
-      - name: go vet
-        run: go vet ./...
-
-      - name: go test
-        run: go test ./... -race -count=1
+      - name: make check
+        run: make check
