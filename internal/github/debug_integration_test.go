@@ -10,6 +10,7 @@ import (
 
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/cli/go-gh/v2/pkg/repository"
+	"github.com/gertzgal/gh-prs/internal/filter"
 )
 
 // TestDebugLogging_EmitsGraphQLBody proves that Debug=true wires go-gh's
@@ -49,7 +50,7 @@ func TestDebugLogging_EmitsGraphQLBody(t *testing.T) {
 		return repository.Repository{Host: "github.com", Owner: "acme-org", Name: "widget"}, nil
 	})
 
-	if _, err := c.FetchRepo(context.Background()); err != nil {
+	if _, err := c.FetchRepo(context.Background(), filter.Set{}); err != nil {
 		t.Fatalf("FetchRepo: %v", err)
 	}
 
@@ -98,7 +99,7 @@ func TestDebugLogging_OffByDefault(t *testing.T) {
 	}
 	c := newClientWith(gql, fakeLocator())
 
-	if _, err := c.FetchRepo(context.Background()); err != nil {
+	if _, err := c.FetchRepo(context.Background(), filter.Set{}); err != nil {
 		t.Fatalf("FetchRepo: %v", err)
 	}
 

@@ -4,16 +4,18 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/cli/go-gh/v2/pkg/repository"
 	graphql "github.com/cli/shurcooL-graphql"
+	"github.com/gertzgal/gh-prs/internal/filter"
 	"github.com/gertzgal/gh-prs/internal/model"
 )
 
 type Client interface {
-	FetchRepo(ctx context.Context) (*model.Repo, error)
+	FetchRepo(ctx context.Context, filters filter.Set) (*model.Repo, error)
 }
 
 // Options configures the GitHub client. Zero-value is safe: no debug, no cache.
@@ -73,7 +75,7 @@ func newClientWith(gql *api.GraphQLClient, resolve func() (repository.Repository
 	return &githubClient{gql: gql, resolve: resolve}
 }
 
-func (c *githubClient) FetchRepo(ctx context.Context) (*model.Repo, error) {
+func (c *githubClient) FetchRepo(ctx context.Context, filters filter.Set) (*model.Repo, error) {
 	cur, err := c.resolve()
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", model.ErrRepoNotFound, err)
@@ -83,11 +85,25 @@ func (c *githubClient) FetchRepo(ctx context.Context) (*model.Repo, error) {
 	vars := map[string]any{
 		"owner": graphql.String(cur.Owner),
 		"name":  graphql.String(cur.Name),
-		"q":     graphql.String(fmt.Sprintf("is:pr is:open author:@me repo:%s/%s", cur.Owner, cur.Name)),
+		"q":     graphql.String(buildSearchQuery(cur.Owner, cur.Name, filters)),
 	}
 
 	if err := c.gql.QueryWithContext(ctx, "PRsForViewer", &q, vars); err != nil {
 		return nil, translateError(err)
 	}
 	return translateQueryResult(&q, cur.Owner, cur.Name), nil
+}
+
+// buildSearchQuery assembles the GitHub Issues Search API query string from
+// the fixed base qualifiers and any fragments contributed by the filter set.
+// The base qualifiers (is:pr, is:open, repo:) are always present; filter
+// fragments are appended in the order returned by filters.QueryFragments().
+func buildSearchQuery(owner, name string, filters filter.Set) string {
+	parts := []string{
+		"is:pr",
+		"is:open",
+		"repo:" + owner + "/" + name,
+	}
+	parts = append(parts, filters.QueryFragments()...)
+	return strings.Join(parts, " ")
 }

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/cli/go-gh/v2/pkg/api"
+	"github.com/gertzgal/gh-prs/internal/filter"
 )
 
 // TestCacheWiring_SecondCallHitsDisk verifies the user-facing perf win: when
@@ -51,7 +52,7 @@ func TestCacheWiring_SecondCallHitsDisk(t *testing.T) {
 	}
 
 	c1 := newClient()
-	if _, err := c1.FetchRepo(context.Background()); err != nil {
+	if _, err := c1.FetchRepo(context.Background(), filter.Set{}); err != nil {
 		t.Fatalf("first FetchRepo: %v", err)
 	}
 	if got := atomic.LoadInt64(&hits); got != 1 {
@@ -60,7 +61,7 @@ func TestCacheWiring_SecondCallHitsDisk(t *testing.T) {
 
 	// Fresh client (separate process simulation), same cache dir.
 	c2 := newClient()
-	if _, err := c2.FetchRepo(context.Background()); err != nil {
+	if _, err := c2.FetchRepo(context.Background(), filter.Set{}); err != nil {
 		t.Fatalf("second FetchRepo: %v", err)
 	}
 	if got := atomic.LoadInt64(&hits); got != 1 {
@@ -95,7 +96,7 @@ func TestCacheWiring_DisabledAlwaysHitsNetwork(t *testing.T) {
 	}
 
 	for i := 0; i < 3; i++ {
-		if _, err := newClient().FetchRepo(context.Background()); err != nil {
+		if _, err := newClient().FetchRepo(context.Background(), filter.Set{}); err != nil {
 			t.Fatalf("FetchRepo #%d: %v", i, err)
 		}
 	}
