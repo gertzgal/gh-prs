@@ -1,0 +1,13 @@
+owner: acme-org
+name: widget
+defaultBranch: main
+viewerLogin: alice
+prs[3]{number,title,url,isDraft,headRefName,baseRefName,additions,deletions,changedFiles,reviewDecision,ciState,mergeStateStatus,author,stackId,stackPos}:
+  3001,"[FEAT-1] Add authentication layer (1/2)","https://github.com/acme-org/widget/pull/3001",false,alice/feat-1-auth-base,main,210,5,8,REVIEW_REQUIRED,SUCCESS,BLOCKED,alice,1,1/2
+  3002,"[FEAT-1] Wire authentication into routes (2/2)","https://github.com/acme-org/widget/pull/3002",false,alice/feat-1-auth-routes,alice/feat-1-auth-base,88,12,4,null,SUCCESS,CLEAN,alice,1,2/2
+  3003,"[FEAT-2] Add rate limiting middleware","https://github.com/acme-org/widget/pull/3003",false,bob/feat-2-rate-limit,main,113,2,3,REVIEW_REQUIRED,SUCCESS,BLOCKED,bob,null,null
+rateLimit:
+  cost: 1
+  remaining: 4996
+  resetAt: "2026-04-17T17:21:19Z"
+latencyMs: 0

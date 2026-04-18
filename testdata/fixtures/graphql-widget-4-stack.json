@@ -27,6 +27,7 @@
           "changedFiles": 18,
           "reviewDecision": "REVIEW_REQUIRED",
           "mergeStateStatus": "BLOCKED",
+          "author": {"login": "octocat"},
           "commits": {
             "nodes": [
               {
@@ -51,6 +52,7 @@
           "changedFiles": 12,
           "reviewDecision": null,
           "mergeStateStatus": "CLEAN",
+          "author": {"login": "octocat"},
           "commits": {
             "nodes": [
               {
@@ -75,6 +77,7 @@
           "changedFiles": 9,
           "reviewDecision": null,
           "mergeStateStatus": "CLEAN",
+          "author": {"login": "octocat"},
           "commits": {
             "nodes": [
               {
@@ -99,6 +102,7 @@
           "changedFiles": 7,
           "reviewDecision": null,
           "mergeStateStatus": "CLEAN",
+          "author": {"login": "octocat"},
           "commits": {
             "nodes": [
               {

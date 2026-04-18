@@ -17,6 +17,7 @@
       "reviewDecision": "REVIEW_REQUIRED",
       "ciState": "FAILURE",
       "mergeStateStatus": "BLOCKED",
+      "author": "octocat",
       "stackId": null,
       "stackPos": null
     },
@@ -33,6 +34,7 @@
       "reviewDecision": "REVIEW_REQUIRED",
       "ciState": "FAILURE",
       "mergeStateStatus": "BLOCKED",
+      "author": "octocat",
       "stackId": null,
       "stackPos": null
     }

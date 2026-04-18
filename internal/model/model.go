@@ -33,6 +33,8 @@ type PR struct {
 	ReviewDecision   ReviewDecision `json:"reviewDecision"`
 	CiState          CiState        `json:"ciState"`
 	MergeStateStatus string         `json:"mergeStateStatus"`
+	// Author is the GitHub login of the PR author. Populated from GraphQL.
+	Author string `json:"author"`
 	// 1-based stack index, nil for standalone. Populated by stacks.Annotate.
 	StackID *int `json:"stackId"`
 	// "i/N" position within the stack (e.g. "2/3"), nil for standalone.
@@ -53,6 +55,7 @@ func (p PR) MarshalJSON() ([]byte, error) {
 		ReviewDecision   any     `json:"reviewDecision"`
 		CiState          any     `json:"ciState"`
 		MergeStateStatus string  `json:"mergeStateStatus"`
+		Author           string  `json:"author"`
 		StackID          *int    `json:"stackId"`
 		StackPos         *string `json:"stackPos"`
 	}{
@@ -68,6 +71,7 @@ func (p PR) MarshalJSON() ([]byte, error) {
 		ReviewDecision:   nilIfEmpty(string(p.ReviewDecision)),
 		CiState:          nilIfEmpty(string(p.CiState)),
 		MergeStateStatus: p.MergeStateStatus,
+		Author:           p.Author,
 		StackID:          p.StackID,
 		StackPos:         p.StackPos,
 	})

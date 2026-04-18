@@ -137,6 +137,7 @@ func runOnce(flags Flags, env map[string]string, stdout, stderr io.Writer) int {
 			LatencyMs:   0,
 			ShowStats:   flags.Stats,
 			FilterLabel: filters.Label(),
+			AuthorOrder: authors,
 		},
 		Stdout: stdout,
 		Stderr: stderr,

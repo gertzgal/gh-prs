@@ -17,6 +17,7 @@
       "reviewDecision": "REVIEW_REQUIRED",
       "ciState": "SUCCESS",
       "mergeStateStatus": "BLOCKED",
+      "author": "octocat",
       "stackId": 1,
       "stackPos": "1/4"
     },
@@ -33,6 +34,7 @@
       "reviewDecision": null,
       "ciState": "SUCCESS",
       "mergeStateStatus": "CLEAN",
+      "author": "octocat",
       "stackId": 1,
       "stackPos": "2/4"
     },
@@ -49,6 +51,7 @@
       "reviewDecision": null,
       "ciState": "SUCCESS",
       "mergeStateStatus": "CLEAN",
+      "author": "octocat",
       "stackId": 1,
       "stackPos": "3/4"
     },
@@ -65,6 +68,7 @@
       "reviewDecision": null,
       "ciState": "SUCCESS",
       "mergeStateStatus": "CLEAN",
+      "author": "octocat",
       "stackId": 1,
       "stackPos": "4/4"
     }

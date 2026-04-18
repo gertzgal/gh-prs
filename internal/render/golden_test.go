@@ -11,24 +11,29 @@ import (
 var updateGolden = flag.Bool("update", false, "overwrite golden files with current output")
 
 var goldenCases = []struct {
-	fixture string
-	color   bool
-	osc8    bool
-	suffix  string
+	fixture     string
+	color       bool
+	osc8        bool
+	suffix      string
+	authorOrder []string
 }{
-	{"graphql-empty", false, false, ""},
-	{"graphql-widget-4-stack", false, false, ""},
-	{"graphql-widget-4-stack", true, false, ".color"},
-	{"graphql-widget-4-stack", true, true, ".osc8"},
-	{"graphql-gadget-standalone", false, false, ""},
-	{"graphql-gadget-standalone", true, false, ".color"},
+	{"graphql-empty", false, false, "", nil},
+	{"graphql-widget-4-stack", false, false, "", nil},
+	{"graphql-widget-4-stack", true, false, ".color", nil},
+	{"graphql-widget-4-stack", true, true, ".osc8", nil},
+	{"graphql-gadget-standalone", false, false, "", nil},
+	{"graphql-gadget-standalone", true, false, ".color", nil},
+	// multi-author fixture: text golden with author sections; JSON/TOON use suffix="" so
+	// they run normally through the JSON/TOON loop (no AuthorOrder needed for those formats).
+	{"graphql-multi-author", false, false, "", nil},
+	{"graphql-multi-author", false, false, ".multi-author", []string{"alice", "bob"}},
 }
 
 func TestGoldenText(t *testing.T) {
 	for _, c := range goldenCases {
 		t.Run(c.fixture+c.suffix, func(t *testing.T) {
 			repo := loadRepo(t, c.fixture)
-			got := mustFormat(t, Text{}, repo, Context{Color: c.color, OSC8: c.osc8, LatencyMs: 0, ShowStats: true})
+			got := mustFormat(t, Text{}, repo, Context{Color: c.color, OSC8: c.osc8, LatencyMs: 0, ShowStats: true, AuthorOrder: c.authorOrder})
 			path := filepath.Join("..", "..", "testdata", "golden", "text", c.fixture+c.suffix+".txt")
 			checkGolden(t, path, []byte(got))
 		})

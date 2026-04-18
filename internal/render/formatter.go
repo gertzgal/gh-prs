@@ -21,6 +21,11 @@ type Context struct {
 	// Populated by filter.Set.Label() in the CLI layer; the render package has
 	// no knowledge of the filter package.
 	FilterLabel string
+	// AuthorOrder is the ordered list of author logins from the --author flags.
+	// When len > 1, the text formatter groups PRs into per-author sections.
+	// The sentinel "@me" is resolved to repo.ViewerLogin at render time.
+	// Single-author and no-author invocations (len <= 1) use the flat layout.
+	AuthorOrder []string
 }
 
 // Formatter renders a fetched repo into its target output form. Implementations
