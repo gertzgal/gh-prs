@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `--format <text|json|toon>` (short `-f`, env `GH_PRS_FORMAT`) selects the
+  output format. `toon` emits Token-Oriented Object Notation — a compact,
+  agent-friendly tabular format that produces ~50% fewer bytes than JSON on
+  typical PR payloads while carrying an explicit field schema.
+- `stackId` and `stackPos` (e.g. `"2/3"`) columns on every PR in machine
+  formats. Inline columns make stack membership self-describing so agents
+  don't have to re-derive topology from `baseRefName`/`headRefName`.
+  Standalone PRs have `null` for both. Populated by `stacks.Annotate`.
 - Disk cache for GraphQL responses (on by default, 60s TTL). Repeat invocations
   within the TTL skip the network round-trip entirely. Cache lives in the
   platform cache dir under `gh-prs/` and is keyed by the full request body.
@@ -15,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--cache-ttl <duration>` flag (also `GH_PRS_CACHE_TTL`) to override the TTL.
 
 ### Changed
+- **Breaking:** `--json` removed — use `--format json` instead.
 - `--debug` now logs the actual GraphQL request/response — URL, headers, query
   body, variables, response body, timing — via go-gh's httpretty logger. The
   previous static "REST equivalent" block is still printed above it for

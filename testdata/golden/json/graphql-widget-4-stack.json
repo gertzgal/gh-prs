@@ -16,7 +16,9 @@
       "changedFiles": 18,
       "reviewDecision": "REVIEW_REQUIRED",
       "ciState": "SUCCESS",
-      "mergeStateStatus": "BLOCKED"
+      "mergeStateStatus": "BLOCKED",
+      "stackId": 1,
+      "stackPos": "1/4"
     },
     {
       "number": 1002,
@@ -30,7 +32,9 @@
       "changedFiles": 12,
       "reviewDecision": null,
       "ciState": "SUCCESS",
-      "mergeStateStatus": "CLEAN"
+      "mergeStateStatus": "CLEAN",
+      "stackId": 1,
+      "stackPos": "2/4"
     },
     {
       "number": 1003,
@@ -44,7 +48,9 @@
       "changedFiles": 9,
       "reviewDecision": null,
       "ciState": "SUCCESS",
-      "mergeStateStatus": "CLEAN"
+      "mergeStateStatus": "CLEAN",
+      "stackId": 1,
+      "stackPos": "3/4"
     },
     {
       "number": 1004,
@@ -58,7 +64,9 @@
       "changedFiles": 7,
       "reviewDecision": null,
       "ciState": "SUCCESS",
-      "mergeStateStatus": "CLEAN"
+      "mergeStateStatus": "CLEAN",
+      "stackId": 1,
+      "stackPos": "4/4"
     }
   ],
   "rateLimit": {

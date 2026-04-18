@@ -59,7 +59,7 @@ func TestText_StackOfTwo(t *testing.T) {
 		samplePR(model.PR{Number: 10, HeadRefName: "feat/a", BaseRefName: "main", Title: "Base of two-stack"}),
 		samplePR(model.PR{Number: 11, HeadRefName: "feat/b", BaseRefName: "feat/a", Title: "Tip of two-stack"}),
 	}
-	out := Text{}.Format(repoWith(prs, nil), Context{Color: false, OSC8: false, LatencyMs: 5})
+	out := mustFormat(t, Text{}, repoWith(prs, nil), Context{Color: false, OSC8: false, LatencyMs: 5})
 
 	if !strings.Contains(out, "stack · 2 PRs") {
 		t.Errorf("want stack · 2 PRs; got:\n%s", out)
@@ -82,7 +82,8 @@ func TestText_StackOfTwo(t *testing.T) {
 }
 
 func TestText_SingularPluralization(t *testing.T) {
-	out := Text{}.Format(
+	out := mustFormat(
+		t, Text{},
 		repoWith([]model.PR{samplePR(model.PR{Number: 42, Title: "Lonely PR"})}, nil),
 		Context{Color: false, OSC8: false, LatencyMs: 5},
 	)
@@ -102,7 +103,7 @@ func TestText_DraftInStackDimmed(t *testing.T) {
 		samplePR(model.PR{Number: 20, HeadRefName: "feat/base", BaseRefName: "main", Title: "Base"}),
 		samplePR(model.PR{Number: 21, HeadRefName: "feat/draft-tip", BaseRefName: "feat/base", Title: "Draft tip", IsDraft: true}),
 	}
-	out := Text{}.Format(repoWith(prs, nil), Context{Color: true, OSC8: false, LatencyMs: 5})
+	out := mustFormat(t, Text{}, repoWith(prs, nil), Context{Color: true, OSC8: false, LatencyMs: 5})
 	dimIdx := strings.Index(out, "\x1b[2m")
 	leadIdx := strings.Index(out, "#20")
 	draftIdx := strings.Index(out, "#21")
@@ -121,7 +122,7 @@ func TestText_BoldLeadOnly(t *testing.T) {
 		samplePR(model.PR{Number: 31, HeadRefName: "feat/middle", BaseRefName: "feat/lead", Title: "Middle PR title"}),
 		samplePR(model.PR{Number: 32, HeadRefName: "feat/tail", BaseRefName: "feat/middle", Title: "Tail PR title"}),
 	}
-	out := Text{}.Format(repoWith(prs, nil), Context{Color: true, OSC8: false, LatencyMs: 5})
+	out := mustFormat(t, Text{}, repoWith(prs, nil), Context{Color: true, OSC8: false, LatencyMs: 5})
 	if !strings.Contains(out, "\x1b[1mLead PR title\x1b[0m") {
 		t.Errorf("lead title should be bold")
 	}
@@ -134,7 +135,7 @@ func TestText_BoldLeadOnly(t *testing.T) {
 }
 
 func TestText_FooterNilRateLimit(t *testing.T) {
-	out := Text{}.Format(repoWith(nil, nil), Context{Color: false, OSC8: false, LatencyMs: 7, ShowStats: true})
+	out := mustFormat(t, Text{}, repoWith(nil, nil), Context{Color: false, OSC8: false, LatencyMs: 7, ShowStats: true})
 	if !strings.Contains(out, "  7ms\n") {
 		t.Errorf("want bare footer 7ms; got:\n%s", out)
 	}
@@ -152,7 +153,7 @@ func TestText_FooterNilRateLimit(t *testing.T) {
 func TestText_FooterWithRateLimit(t *testing.T) {
 	rl := &model.RateLimit{Cost: 1, Remaining: 4655, ResetAt: "2026-04-17T20:00:00Z"}
 	prs := []model.PR{samplePR(model.PR{})}
-	out := Text{}.Format(repoWith(prs, rl), Context{Color: false, OSC8: false, LatencyMs: 1408, ShowStats: true})
+	out := mustFormat(t, Text{}, repoWith(prs, rl), Context{Color: false, OSC8: false, LatencyMs: 1408, ShowStats: true})
 	if !strings.Contains(out, "  1408ms · ● 1pt · 4655 remaining") {
 		t.Errorf("want compact footer; got:\n%s", out)
 	}
@@ -161,7 +162,7 @@ func TestText_FooterWithRateLimit(t *testing.T) {
 func TestText_FooterHiddenByDefault(t *testing.T) {
 	rl := &model.RateLimit{Cost: 1, Remaining: 4655, ResetAt: "2026-04-17T20:00:00Z"}
 	prs := []model.PR{samplePR(model.PR{})}
-	out := Text{}.Format(repoWith(prs, rl), Context{Color: false, OSC8: false, LatencyMs: 1408})
+	out := mustFormat(t, Text{}, repoWith(prs, rl), Context{Color: false, OSC8: false, LatencyMs: 1408})
 
 	for _, needle := range []string{"1408ms", "1pt", "4655 remaining", "●"} {
 		if strings.Contains(out, needle) {

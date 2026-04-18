@@ -10,12 +10,9 @@ import (
 	"github.com/gertzgal/gh-prs/internal/github"
 	"github.com/gertzgal/gh-prs/internal/model"
 	"github.com/gertzgal/gh-prs/internal/render"
+	"github.com/gertzgal/gh-prs/internal/stacks"
 )
 
-// Exit codes duplicated as literals here rather than imported from internal/cli
-// to avoid the import cycle cli → app → cli (CONTRACTS.md import graph forbids
-// app importing cli; the task file's sample import list was inconsistent with
-// the graph). cli.ExitXxx remains the single source of truth for callers.
 const (
 	exitSuccess = 0
 	exitGhError = 1
@@ -23,10 +20,12 @@ const (
 	exitNoPRs   = 3
 )
 
-// Flags mirrors the caller's JSON intent. We intentionally do not duplicate the
-// full cli.Flags surface to keep the app package free of cobra/cli concerns.
+// Flags captures the subset of CLI intent that affects Run's behaviour.
+// Machine is true when the output format is for machine consumption
+// (json/toon): Run skips the human-oriented "no open PRs" message and always
+// delegates to the formatter. Kept minimal to avoid coupling app to cli.
 type Flags struct {
-	JSON bool
+	Machine bool
 }
 
 // Deps is the injectable set of collaborators Run needs.
@@ -49,15 +48,25 @@ func Run(ctx context.Context, d Deps) int {
 		return reportFetchError(err, d.Stderr)
 	}
 
+	// Derive stack topology (stackId + stackPos) once, here, so every
+	// formatter receives consistently annotated input. Keeps presentation
+	// code free of the stacks package.
+	repo.PRs = stacks.Annotate(repo.PRs, repo.DefaultBranch)
+
 	latencyMs := int(d.Now().Sub(start).Round(time.Millisecond) / time.Millisecond)
 	ctx2 := d.FormatCtx
 	ctx2.LatencyMs = latencyMs
 
-	if !d.Flags.JSON && len(repo.PRs) == 0 {
+	if !d.Flags.Machine && len(repo.PRs) == 0 {
 		_, _ = fmt.Fprintf(d.Stdout, "\nNo open PRs authored by @%s in %s/%s.\n\n", repo.ViewerLogin, repo.Owner, repo.Name)
 		return exitNoPRs
 	}
-	_, _ = io.WriteString(d.Stdout, d.Formatter.Format(repo, ctx2))
+	out, err := d.Formatter.Format(repo, ctx2)
+	if err != nil {
+		_, _ = fmt.Fprintf(d.Stderr, "gh prs: format: %v\n", err)
+		return exitGhError
+	}
+	_, _ = io.WriteString(d.Stdout, out)
 	if len(repo.PRs) > 0 {
 		return exitSuccess
 	}

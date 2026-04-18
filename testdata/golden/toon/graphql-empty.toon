@@ -1,0 +1,10 @@
+owner: acme-org
+name: widget
+defaultBranch: main
+viewerLogin: octocat
+prs[0]:
+rateLimit:
+  cost: 1
+  remaining: 4997
+  resetAt: "2026-04-17T17:21:19Z"
+latencyMs: 0
