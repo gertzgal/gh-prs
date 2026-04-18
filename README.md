@@ -2,7 +2,7 @@
 
 [![ci](https://github.com/gertzgal/gh-prs/actions/workflows/ci.yml/badge.svg)](https://github.com/gertzgal/gh-prs/actions/workflows/ci.yml)
 [![release](https://img.shields.io/github/v/release/gertzgal/gh-prs?sort=semver)](https://github.com/gertzgal/gh-prs/releases)
-[![Go Reference](https://pkg.go.dev/badge/github.com/gertzgal/gh-prs.svg)](https://pkg.go.dev/github.com/gertzgal/gh-prs)
+[![Go Report Card](https://goreportcard.com/badge/github.com/gertzgal/gh-prs)](https://goreportcard.com/report/github.com/gertzgal/gh-prs)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 > Your open PRs in the current repo — stacks as trees, standalone flat.
@@ -71,10 +71,10 @@ gh prs --help
 
 Pick the right output for the consumer:
 
-| Format | When to use |
-|--------|-------------|
-| `text` | Default. Colorized TTY output with stacks as trees and OSC8-clickable PR numbers. |
-| `json` | Piping into `jq`, dashboards, or any conventional tool. Same shape as the GraphQL source plus derived `stackId`/`stackPos` fields. |
+| Format | When to use                                                                                                                           |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `text` | Default. Colorized TTY output with stacks as trees and OSC8-clickable PR numbers.                                                     |
+| `json` | Piping into `jq`, dashboards, or any conventional tool. Same shape as the GraphQL source plus derived `stackId`/`stackPos` fields.    |
 | `toon` | Passing context to an LLM or coding agent. ~50% fewer bytes than JSON, with an explicit tabular schema the model reads in one glance. |
 
 ### Why TOON for agents
