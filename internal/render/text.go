@@ -132,11 +132,13 @@ func (Text) Format(repo *model.Repo, ctx Context) string {
 		out = append(out, "")
 	}
 
-	footer := []string{fmt.Sprintf("%dms", ctx.LatencyMs)}
-	if repo.RateLimit != nil {
-		footer = append(footer, fmt.Sprintf("● %dpt", repo.RateLimit.Cost))
-		footer = append(footer, fmt.Sprintf("%d remaining", repo.RateLimit.Remaining))
+	if ctx.ShowStats {
+		footer := []string{fmt.Sprintf("%dms", ctx.LatencyMs)}
+		if repo.RateLimit != nil {
+			footer = append(footer, fmt.Sprintf("● %dpt", repo.RateLimit.Cost))
+			footer = append(footer, fmt.Sprintf("%d remaining", repo.RateLimit.Remaining))
+		}
+		out = append(out, "  "+fgGray(strings.Join(footer, " · "), opts.color))
 	}
-	out = append(out, "  "+fgGray(strings.Join(footer, " · "), opts.color))
 	return strings.Join(out, "\n") + "\n"
 }

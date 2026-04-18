@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Disk cache for GraphQL responses (on by default, 60s TTL). Repeat invocations
+  within the TTL skip the network round-trip entirely. Cache lives in the
+  platform cache dir under `gh-prs/` and is keyed by the full request body.
+- `--no-cache` flag (also `GH_PRS_NO_CACHE=1`) to bypass the cache.
+- `--cache-ttl <duration>` flag (also `GH_PRS_CACHE_TTL`) to override the TTL.
+
+### Changed
+- `--debug` now logs the actual GraphQL request/response — URL, headers, query
+  body, variables, response body, timing — via go-gh's httpretty logger. The
+  previous static "REST equivalent" block is still printed above it for
+  orientation.
+
 ## [0.1.0] - 2026-04-18
 
 ### Added
