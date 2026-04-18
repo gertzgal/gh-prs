@@ -1,0 +1,12 @@
+owner: acme-org
+name: widget
+defaultBranch: main
+viewerLogin: octocat
+prs[2]{number,title,url,isDraft,headRefName,baseRefName,additions,deletions,changedFiles,reviewDecision,ciState,mergeStateStatus,stackId,stackPos}:
+  2001,"[ACME-200] Fix config loader error handling","https://github.com/acme-org/gadget/pull/2001",false,fix/ACME-200-config-loader,main,84,23,4,REVIEW_REQUIRED,FAILURE,BLOCKED,null,null
+  2002,"[ACME-201] WIP: refactor cache invalidation","https://github.com/acme-org/gadget/pull/2002",true,feature/ACME-201-cache-refactor,main,256,12,9,REVIEW_REQUIRED,FAILURE,BLOCKED,null,null
+rateLimit:
+  cost: 1
+  remaining: 4998
+  resetAt: "2026-04-17T17:21:19Z"
+latencyMs: 0

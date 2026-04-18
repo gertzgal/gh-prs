@@ -195,3 +195,109 @@ func TestGroup_OrphanExcluded(t *testing.T) {
 		t.Errorf("want 0 standalone, got %d", len(got.Standalone))
 	}
 }
+
+func TestAnnotate_MixedStackAndStandalone(t *testing.T) {
+	a1 := pr(model.PR{Number: 1, HeadRefName: "a1", BaseRefName: "main"})
+	a2 := pr(model.PR{Number: 2, HeadRefName: "a2", BaseRefName: "a1"})
+	a3 := pr(model.PR{Number: 3, HeadRefName: "a3", BaseRefName: "a2"})
+	b1 := pr(model.PR{Number: 4, HeadRefName: "b1", BaseRefName: "main"})
+	b2 := pr(model.PR{Number: 5, HeadRefName: "b2", BaseRefName: "b1"})
+	solo := pr(model.PR{Number: 6, HeadRefName: "solo", BaseRefName: "main"})
+
+	in := []model.PR{a1, a2, a3, b1, b2, solo}
+	got := stacks.Annotate(in, "main")
+
+	if len(got) != len(in) {
+		t.Fatalf("length: got %d, want %d", len(got), len(in))
+	}
+
+	byNum := make(map[int]model.PR, len(got))
+	for _, p := range got {
+		byNum[p.Number] = p
+	}
+
+	cases := []struct {
+		num       int
+		wantStack *int
+		wantPos   *string
+	}{
+		{1, intPtr(1), strPtr("1/3")},
+		{2, intPtr(1), strPtr("2/3")},
+		{3, intPtr(1), strPtr("3/3")},
+		{4, intPtr(2), strPtr("1/2")},
+		{5, intPtr(2), strPtr("2/2")},
+		{6, nil, nil},
+	}
+	for _, c := range cases {
+		p := byNum[c.num]
+		if !equalIntPtr(p.StackID, c.wantStack) {
+			t.Errorf("#%d StackID: got %v, want %v", c.num, derefInt(p.StackID), derefInt(c.wantStack))
+		}
+		if !equalStrPtr(p.StackPos, c.wantPos) {
+			t.Errorf("#%d StackPos: got %q, want %q", c.num, derefStr(p.StackPos), derefStr(c.wantPos))
+		}
+	}
+}
+
+func TestAnnotate_DoesNotMutateInput(t *testing.T) {
+	a1 := pr(model.PR{Number: 1, HeadRefName: "a1", BaseRefName: "main"})
+	a2 := pr(model.PR{Number: 2, HeadRefName: "a2", BaseRefName: "a1"})
+	in := []model.PR{a1, a2}
+
+	_ = stacks.Annotate(in, "main")
+
+	if in[0].StackID != nil || in[0].StackPos != nil {
+		t.Errorf("input[0] mutated: StackID=%v StackPos=%v", in[0].StackID, in[0].StackPos)
+	}
+	if in[1].StackID != nil || in[1].StackPos != nil {
+		t.Errorf("input[1] mutated: StackID=%v StackPos=%v", in[1].StackID, in[1].StackPos)
+	}
+}
+
+func TestAnnotate_PreservesOrder(t *testing.T) {
+	in := []model.PR{
+		pr(model.PR{Number: 10, HeadRefName: "x", BaseRefName: "main"}),
+		pr(model.PR{Number: 20, HeadRefName: "y", BaseRefName: "x"}),
+		pr(model.PR{Number: 30, HeadRefName: "z", BaseRefName: "main"}),
+	}
+	got := stacks.Annotate(in, "main")
+	for i := range in {
+		if got[i].Number != in[i].Number {
+			t.Errorf("order changed at %d: got #%d want #%d", i, got[i].Number, in[i].Number)
+		}
+	}
+}
+
+func TestAnnotate_Empty(t *testing.T) {
+	got := stacks.Annotate(nil, "main")
+	if len(got) != 0 {
+		t.Errorf("want empty slice, got %d entries", len(got))
+	}
+}
+
+func intPtr(i int) *int       { return &i }
+func strPtr(s string) *string { return &s }
+func derefInt(p *int) any {
+	if p == nil {
+		return nil
+	}
+	return *p
+}
+func derefStr(p *string) any {
+	if p == nil {
+		return nil
+	}
+	return *p
+}
+func equalIntPtr(a, b *int) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
+}
+func equalStrPtr(a, b *string) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
+}

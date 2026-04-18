@@ -108,10 +108,10 @@ func TestRun_HappyPathText(t *testing.T) {
 	}
 }
 
-func TestRun_HappyPathJSON(t *testing.T) {
+func TestRun_HappyPathMachine(t *testing.T) {
 	jsonF := &stubFormatter{label: "JSON"}
 	d, stdout, _, _ := newHarness(func(d *Deps) {
-		d.Flags.JSON = true
+		d.Flags.Machine = true
 		d.Formatter = jsonF
 	})
 	code := Run(context.Background(), d)
@@ -138,10 +138,10 @@ func TestRun_EmptyPRsText(t *testing.T) {
 	}
 }
 
-func TestRun_EmptyPRsJSON(t *testing.T) {
+func TestRun_EmptyPRsMachine(t *testing.T) {
 	jsonF := &stubFormatter{label: "JSON"}
 	d, stdout, _, _ := newHarness(func(d *Deps) {
-		d.Flags.JSON = true
+		d.Flags.Machine = true
 		d.Client = stubClient{repo: emptyRepo()}
 		d.Formatter = jsonF
 	})

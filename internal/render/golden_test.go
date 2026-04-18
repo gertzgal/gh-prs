@@ -49,6 +49,20 @@ func TestGoldenJSON(t *testing.T) {
 	}
 }
 
+func TestGoldenTOON(t *testing.T) {
+	for _, c := range goldenCases {
+		if c.suffix != "" {
+			continue
+		}
+		t.Run(c.fixture, func(t *testing.T) {
+			repo := loadRepo(t, c.fixture)
+			got := TOON{}.Format(repo, Context{Color: false, OSC8: false, LatencyMs: 0})
+			path := filepath.Join("..", "..", "testdata", "golden", "toon", c.fixture+".toon")
+			checkGolden(t, path, []byte(got))
+		})
+	}
+}
+
 func checkGolden(t *testing.T, path string, got []byte) {
 	t.Helper()
 	if *updateGolden {

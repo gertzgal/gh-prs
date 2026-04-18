@@ -23,10 +23,12 @@ const (
 	exitNoPRs   = 3
 )
 
-// Flags mirrors the caller's JSON intent. We intentionally do not duplicate the
-// full cli.Flags surface to keep the app package free of cobra/cli concerns.
+// Flags captures the subset of CLI intent that affects Run's behaviour.
+// Machine is true when the output format is for machine consumption
+// (json/toon): Run skips the human-oriented "no open PRs" message and always
+// delegates to the formatter. Kept minimal to avoid coupling app to cli.
 type Flags struct {
-	JSON bool
+	Machine bool
 }
 
 // Deps is the injectable set of collaborators Run needs.
@@ -53,7 +55,7 @@ func Run(ctx context.Context, d Deps) int {
 	ctx2 := d.FormatCtx
 	ctx2.LatencyMs = latencyMs
 
-	if !d.Flags.JSON && len(repo.PRs) == 0 {
+	if !d.Flags.Machine && len(repo.PRs) == 0 {
 		fmt.Fprintf(d.Stdout, "\nNo open PRs authored by @%s in %s/%s.\n\n", repo.ViewerLogin, repo.Owner, repo.Name)
 		return exitNoPRs
 	}

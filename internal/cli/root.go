@@ -16,11 +16,14 @@ import (
 	"golang.org/x/term"
 )
 
-// USAGE reproduces the TS src/cli-args.ts USAGE constant byte-for-byte, plus
-// the new perf-related flags added in v0.2.
-const USAGE = `Usage: gh prs [--json] [--debug] [--no-cache] [--cache-ttl <dur>] [--stats] [--help]
+const USAGE = `Usage: gh prs [--format <text|json|toon>] [--debug] [--no-cache] [--cache-ttl <dur>] [--stats] [--help]
 
-  --json           Emit the fetched repo + PRs as JSON to stdout. No colors, no spinner.
+  --format <name>  Output format. One of:
+                     text  (default) human-readable terminal output with color.
+                     json  structured JSON to stdout. No colors, no spinner.
+                     toon  Token-Oriented Object Notation (compact, agent-friendly).
+                           ~40% fewer tokens than JSON with an explicit tabular schema.
+                   Also honored via GH_PRS_FORMAT.
   --debug          Log the actual GraphQL request + response (URL, headers, body, timing)
                    to stderr. Still prints the "REST equivalent" block for orientation.
                    Also honored via DEBUG=1 env var.
@@ -44,8 +47,8 @@ Exit codes: 0 success · 1 gh/network failure · 2 not in a GitHub repo · 3 no 
 // Call site: main.go -> os.Exit(cli.Execute(os.Args[1:], os.Environ()))
 func Execute(argv []string, env []string) int {
 	envMap := envSliceToMap(env)
-	var cobraJSON, cobraDebug, cobraNoCache, cobraStats bool
-	var cobraCacheTTL string
+	var cobraDebug, cobraNoCache, cobraStats bool
+	var cobraFormat, cobraCacheTTL string
 	runExit := ExitSuccess
 
 	cmd := &cobra.Command{
@@ -54,13 +57,16 @@ func Execute(argv []string, env []string) int {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			flags := composeFlags(cobraJSON, cobraDebug, cobraNoCache, cobraCacheTTL, cobraStats, envMap)
+			flags := composeFlags(cobraFormat, cobraDebug, cobraNoCache, cobraCacheTTL, cobraStats, envMap)
+			if !validFormat(flags.Format) {
+				return fmt.Errorf("unknown --format %q (want text|json|toon)", flags.Format)
+			}
 			runExit = runOnce(flags, envMap, os.Stdout, os.Stderr)
 			return nil
 		},
 	}
 	cmd.SetArgs(argv)
-	cmd.Flags().BoolVar(&cobraJSON, "json", false, "Emit JSON to stdout (no colors, no spinner)")
+	cmd.Flags().StringVarP(&cobraFormat, "format", "f", "", "Output format: text|json|toon (default text; also via GH_PRS_FORMAT)")
 	cmd.Flags().BoolVar(&cobraDebug, "debug", false, "Log actual GraphQL request/response to stderr (also via DEBUG=1)")
 	cmd.Flags().BoolVar(&cobraNoCache, "no-cache", false, "Skip the disk cache (also via GH_PRS_NO_CACHE=1)")
 	cmd.Flags().StringVar(&cobraCacheTTL, "cache-ttl", "", "Cache TTL (e.g. 60s, 2m). Default 60s.")
@@ -94,17 +100,15 @@ func runOnce(flags Flags, env map[string]string, stdout, stderr io.Writer) int {
 		return MapError(err, false)
 	}
 
-	spinner := NewSpinner(!flags.JSON, stderrIsTTY, stderr)
+	machine := flags.Machine()
+	spinner := NewSpinner(!machine, stderrIsTTY, stderr)
 	spinner.Start()
 	defer spinner.Stop()
 
-	formatter := render.Formatters()[render.NameText]
-	if flags.JSON {
-		formatter = render.Formatters()[render.NameJSON]
-	}
+	formatter := render.Formatters()[formatNameFor(flags.Format)]
 
 	return app.Run(context.Background(), app.Deps{
-		Flags:     app.Flags{JSON: flags.JSON},
+		Flags:     app.Flags{Machine: machine},
 		Client:    client,
 		Formatter: formatter,
 		FormatCtx: render.Context{
@@ -117,6 +121,19 @@ func runOnce(flags Flags, env map[string]string, stdout, stderr io.Writer) int {
 		Stderr: stderr,
 		Now:    time.Now,
 	})
+}
+
+// formatNameFor maps a CLI format string to the render.Name key. validFormat
+// is assumed to have already passed.
+func formatNameFor(format string) render.Name {
+	switch format {
+	case FormatJSON:
+		return render.NameJSON
+	case FormatTOON:
+		return render.NameTOON
+	default:
+		return render.NameText
+	}
 }
 
 // buildClientOptions converts CLI flags + env into github.Options. Debug logs

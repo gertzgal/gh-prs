@@ -55,13 +55,40 @@ Requires an authenticated `gh` (`gh auth login`). The binary is self-contained.
 ## Usage
 
 ```
-gh prs                    # human-readable
-gh prs --json             # JSON to stdout
-gh prs --debug            # log the actual GraphQL request/response to stderr
-gh prs --no-cache         # bypass the disk cache
-gh prs --cache-ttl 2m     # override the default 60s cache TTL
+gh prs                      # human-readable (default)
+gh prs --format json        # structured JSON to stdout
+gh prs --format toon        # Token-Oriented Object Notation (agent-friendly)
+gh prs -f toon              # same, short form
+gh prs --debug              # log the actual GraphQL request/response to stderr
+gh prs --no-cache           # bypass the disk cache
+gh prs --cache-ttl 2m       # override the default 60s cache TTL
 gh prs --help
 ```
+
+## Formats
+
+Pick the right output for the consumer:
+
+| Format | When to use |
+|--------|-------------|
+| `text` | Default. Colorized TTY output with stacks as trees and OSC8-clickable PR numbers. |
+| `json` | Piping into `jq`, dashboards, or any conventional tool. Same shape as the GraphQL source plus derived `stackId`/`stackPos` fields. |
+| `toon` | Passing context to an LLM or coding agent. ~50% fewer bytes than JSON, with an explicit tabular schema the model reads in one glance. |
+
+### Why TOON for agents
+
+[TOON](https://toonformat.dev/) collapses uniform arrays of objects into a single header line plus one CSV-like row per item. Our PR list is exactly that shape, so the token win is real: for a typical 4-PR response, JSON is ~2.1 KB and TOON is ~1.0 KB. The header declares fields once:
+
+```
+prs[4]{number,title,url,isDraft,headRefName,baseRefName,additions,deletions,changedFiles,reviewDecision,ciState,mergeStateStatus,stackId,stackPos}:
+  1001,"[ACME-100] Add feature foundation (1/4)","https://github.com/acme-org/widget/pull/1001",false,ACME-100/feature-1-foundation,main,515,59,18,REVIEW_REQUIRED,SUCCESS,BLOCKED,1,1/4
+  1002,"[ACME-100] Add feature UI (2/4)","...",false,ACME-100/feature-2-ui,ACME-100/feature-1-foundation,342,27,12,null,SUCCESS,CLEAN,1,2/4
+  ...
+```
+
+**Stack membership is inline.** Every PR row carries `stackId` (1-based stack index, or `null` for standalone) and `stackPos` (e.g. `"2/4"`). Agents don't need to walk `baseRefName`/`headRefName` chains to understand topology — it's a column lookup. `stackId`/`stackPos` are also added to `--format json` output for consistency.
+
+Also honoured via `GH_PRS_FORMAT=<name>`.
 
 **Caching.** Responses are cached to disk (platform cache dir, under `gh-prs/`)
 with a 60s TTL by default. Repeat invocations within that window skip the
