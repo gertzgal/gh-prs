@@ -41,7 +41,7 @@ Exit codes: 0 success · 1 gh/network failure · 2 not in a GitHub repo · 3 no 
 
 // Execute parses flags, runs the app, returns the exit code.
 // Never panics; maps all errors to exit codes via MapError.
-// Call site: cmd/gh-prs/main.go -> os.Exit(cli.Execute(os.Args[1:], os.Environ()))
+// Call site: main.go -> os.Exit(cli.Execute(os.Args[1:], os.Environ()))
 func Execute(argv []string, env []string) int {
 	envMap := envSliceToMap(env)
 	var cobraJSON, cobraDebug, cobraNoCache, cobraStats bool
