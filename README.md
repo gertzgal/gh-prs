@@ -5,7 +5,44 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/gertzgal/gh-prs.svg)](https://pkg.go.dev/github.com/gertzgal/gh-prs)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-A `gh` CLI extension that shows a compact overview of the current user's open PRs in the current repo — stacks rendered as trees, standalone PRs flat. Single GraphQL round-trip, live CI/review status, OSC8 clickable PR numbers. Ships as a precompiled Go binary.
+> Your open PRs in the current repo — stacks as trees, standalone flat.
+> One GraphQL round-trip, live CI/review status, OSC8-clickable PR numbers.
+
+## Demo
+
+<!-- DEMO_OUTPUT_START -->
+
+```
+acme/widgets · main · @octocat
+
+  stack · 2 PRs
+
+  ┬ #1042  ✓ ci  ● review  +320-45  feat: billing webhook receiver (1/2)  1/2
+  │          feat/billing-webhooks-1-receiver
+  └ #1043  ✓ ci  ○ review  +180-12  feat: wire billing webhooks to notifier (2/2)  2/2
+             feat/billing-webhooks-2-notifier
+
+  stack · 3 PRs
+
+  ┬ #1058  ✓ ci  ● review  +512-88  refactor: session store (1/3)  1/3
+  │          refactor/session-1-store
+  ├ #1059  ✓ ci  ○ review  +240-30  refactor: session middleware (2/3)  2/3
+  │          refactor/session-2-middleware
+  └ #1060  ✗ ci  ○ review  +95-14  refactor: session cleanup (3/3)  3/3
+             refactor/session-3-cleanup
+
+  standalone · 2 PRs
+
+  #1063  ✓ ci  ● review  +60-8  fix: off-by-one in pagination cursor
+           fix/pagination-cursor
+
+  #1071  ✓ ci  ○ review  +140-22  chore: bump go to 1.23
+           chore/bump-go-1.23
+
+  980ms · ● 1pt · 4999 remaining
+```
+
+<!-- DEMO_OUTPUT_END -->
 
 ## Install
 
@@ -13,62 +50,31 @@ A `gh` CLI extension that shows a compact overview of the current user's open PR
 gh extension install gertzgal/gh-prs
 ```
 
-Needs `gh` authenticated (`gh auth login`). No other runtime — the binary is self-contained.
+Requires an authenticated `gh` (`gh auth login`). The binary is self-contained.
 
 ## Usage
 
 ```
-gh prs                  # human-readable output
-gh prs --json           # JSON to stdout (no colors, no spinner)
-gh prs --debug          # print equivalent gh api REST calls to stderr
+gh prs           # human-readable
+gh prs --json    # JSON to stdout
+gh prs --debug   # equivalent gh api calls to stderr
 gh prs --help
 ```
 
-Exit codes: `0` success · `1` gh/network failure · `2` not in a GitHub repo · `3` no authored open PRs.
+**Exit codes:** `0` ok · `1` gh/network · `2` not a GitHub repo · `3` no open PRs.
 
-## Local development
-
-```bash
-# Install from this directory (symlinks the repo to ~/.local/share/gh/extensions/gh-prs/)
-gh extension install .
-
-# Rebuild the binary after editing Go source:
-go build -o ./gh-prs ./cmd/gh-prs
-```
-
-Tests:
+## Development
 
 ```bash
-go test ./...
-go test ./... -cover
-```
-
-Cross-compile matrix:
-
-```bash
-for os in darwin linux windows; do
-  for arch in amd64 arm64; do
-    ext=""; [[ "$os" == "windows" ]] && ext=".exe"
-    GOOS=$os GOARCH=$arch CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" \
-      -o "/tmp/gh-prs-cross/$os-$arch$ext" ./cmd/gh-prs
-  done
-done
+gh extension install .                # symlink this repo as the extension
+go build -o ./gh-prs ./cmd/gh-prs     # rebuild after edits
+go test ./... -cover                  # tests
 ```
 
 ## Release
 
-Tag-push releases are built by [`cli/gh-extension-precompile@v2`](https://github.com/cli/gh-extension-precompile) (see `.github/workflows/release.yml`). Pushing a tag `vX.Y.Z` triggers a cross-platform build and uploads `dist/{os}-{arch}[.exe]` binaries to a GitHub Release; `gh extension install gertzgal/gh-prs` then picks the correct binary for the host platform.
+Pushing a tag `vX.Y.Z` triggers [`cli/gh-extension-precompile@v2`](https://github.com/cli/gh-extension-precompile) to build cross-platform binaries and publish a GitHub Release.
 
-## Layout
+## License
 
-- `cmd/gh-prs/main.go` — entry point.
-- `internal/github/` — GraphQL client (single round-trip; uses `cli/go-gh/v2`).
-- `internal/stacks/` — base/head stack grouping.
-- `internal/render/` — text + JSON formatters, ANSI + OSC8 helpers, status glyphs.
-- `internal/cli/` — cobra root, env/TTY detection, spinner, debug output, exit codes.
-- `internal/app/` — orchestration.
-- `testdata/` — GraphQL fixture responses + golden expected outputs.
-
-## History
-
-Originally written in Bun/TypeScript. Rewritten in Go (April 2026) to ship as a single ~7 MB precompiled binary with zero runtime dependencies, matching the ecosystem-standard path for `gh` extensions (see `github/gh-skyline`, `dlvhdr/gh-dash`).
+MIT
