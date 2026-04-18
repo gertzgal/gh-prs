@@ -20,11 +20,9 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: install golangci-lint
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | \
-            sh -s -- -b "$(go env GOPATH)/bin" latest
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.11.4
 
       - name: make check
         run: make check
