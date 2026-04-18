@@ -52,7 +52,12 @@ lint: ## Run golangci-lint (auto-installs to GOPATH/bin if missing)
 check: fmt-check vet lint test ## Run the full CI gate locally
 
 install: build ## Build and install the `gh prs` extension (idempotent)
-	@gh extension list | grep -q '\bprs\b' || gh extension install .
+	-gh extension remove $(EXT_NAME)
+	gh extension install .
+
+install-release: ## Remove local build and install the published release from GitHub
+	-gh extension remove $(EXT_NAME)
+	gh extension install gertzgal/gh-prs
 
 uninstall: ## Remove the locally installed `gh prs` extension
 	gh extension remove $(EXT_NAME)
