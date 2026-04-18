@@ -21,5 +21,5 @@ func PrintRESTEquivalent(owner, name string, stderr io.Writer) {
 		p + fmt.Sprintf("   gh api repos/%s/%s/commits/<sha>/check-runs           # ciState", owner, name),
 		p + " ─ total: 3 + 3N REST calls (vs 1 GraphQL call)",
 	}
-	fmt.Fprintln(stderr, strings.Join(lines, "\n"))
+	_, _ = fmt.Fprintln(stderr, strings.Join(lines, "\n"))
 }

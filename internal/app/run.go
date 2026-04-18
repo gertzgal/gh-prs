@@ -75,17 +75,17 @@ func Run(ctx context.Context, d Deps) int {
 
 func reportFetchError(err error, stderr io.Writer) int {
 	if errors.Is(err, model.ErrRepoNotFound) {
-		fmt.Fprintln(stderr, "gh prs: not inside a GitHub repo")
+		_, _ = fmt.Fprintln(stderr, "gh prs: not inside a GitHub repo")
 		return exitNoRepo
 	}
 	var ghErr *model.GhError
 	if errors.As(err, &ghErr) {
-		fmt.Fprintf(stderr, "gh prs: %s\n", ghErr.Msg)
+		_, _ = fmt.Fprintf(stderr, "gh prs: %s\n", ghErr.Msg)
 		if ghErr.Stderr != "" {
-			fmt.Fprintln(stderr, ghErr.Stderr)
+			_, _ = fmt.Fprintln(stderr, ghErr.Stderr)
 		}
 		return exitGhError
 	}
-	fmt.Fprintf(stderr, "gh prs: unexpected error: %v\n", err)
+	_, _ = fmt.Fprintf(stderr, "gh prs: unexpected error: %v\n", err)
 	return exitGhError
 }

@@ -111,7 +111,7 @@ func TestText_DraftInStackDimmed(t *testing.T) {
 	if dimIdx < 0 {
 		t.Fatalf("expected dim SGR, got:\n%s", out)
 	}
-	if !(dimIdx > leadIdx && dimIdx < draftIdx && draftIdx < branchIdx) {
+	if dimIdx <= leadIdx || dimIdx >= draftIdx || draftIdx >= branchIdx {
 		t.Errorf("unexpected order: dim=%d lead=%d draft=%d branch=%d", dimIdx, leadIdx, draftIdx, branchIdx)
 	}
 }

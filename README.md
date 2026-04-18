@@ -100,10 +100,15 @@ disable with `--no-cache` / `GH_PRS_NO_CACHE=1`.
 ## Development
 
 ```bash
-gh extension install .                # symlink this repo as the extension
-go build -o ./gh-prs .                # rebuild after edits
-go test ./... -cover                  # tests
+make help                      # list all targets
+make install                   # build + install as the `gh prs` extension
+make build                     # build ./gh-prs
+make test                      # run tests (matches CI: -race -count=1)
+make check                     # full CI gate: fmt-check + vet + lint + test
+make run ARGS="--debug"        # go run . --debug
 ```
+
+`make lint` requires [`golangci-lint`](https://golangci-lint.run/welcome/install/) on your PATH. CI installs it automatically.
 
 ## Release
 

@@ -58,10 +58,10 @@ func renderStack(node *stacks.Node, opts renderOpts) []string {
 	lines := make([]string, 0, n)
 	for i, pr := range prs {
 		var glyph string
-		switch {
-		case i == 0:
+		switch i {
+		case 0:
 			glyph = "┬"
-		case i == n-1:
+		case n - 1:
 			glyph = "└"
 		default:
 			glyph = "├"

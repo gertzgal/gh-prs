@@ -74,7 +74,7 @@ func Execute(argv []string, env []string) int {
 	cmd.SetOut(os.Stdout)
 	cmd.SetErr(os.Stderr)
 	cmd.SetHelpFunc(func(_ *cobra.Command, _ []string) {
-		fmt.Fprint(os.Stdout, USAGE)
+		_, _ = fmt.Fprint(os.Stdout, USAGE)
 	})
 
 	if err := cmd.Execute(); err != nil {
@@ -96,7 +96,7 @@ func runOnce(flags Flags, env map[string]string, stdout, stderr io.Writer) int {
 	clientOpts := buildClientOptions(flags, env, stderr, stderrIsTTY)
 	client, err := github.New(clientOpts)
 	if err != nil {
-		fmt.Fprintf(stderr, "gh prs: %s\n", err)
+		_, _ = fmt.Fprintf(stderr, "gh prs: %s\n", err)
 		return MapError(err, false)
 	}
 
