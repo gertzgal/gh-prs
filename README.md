@@ -74,7 +74,7 @@ disable with `--no-cache` / `GH_PRS_NO_CACHE=1`.
 
 ```bash
 gh extension install .                # symlink this repo as the extension
-go build -o ./gh-prs ./cmd/gh-prs     # rebuild after edits
+go build -o ./gh-prs .                # rebuild after edits
 go test ./... -cover                  # tests
 ```
 
