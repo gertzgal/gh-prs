@@ -7,6 +7,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/gertzgal/gh-prs/internal/filter"
 	"github.com/gertzgal/gh-prs/internal/github"
 	"github.com/gertzgal/gh-prs/internal/model"
 	"github.com/gertzgal/gh-prs/internal/render"
@@ -31,6 +32,7 @@ type Flags struct {
 // Deps is the injectable set of collaborators Run needs.
 type Deps struct {
 	Flags     Flags
+	Filters   filter.Set
 	Client    github.Client
 	Formatter render.Formatter
 	FormatCtx render.Context
@@ -43,10 +45,15 @@ type Deps struct {
 // Never panics.
 func Run(ctx context.Context, d Deps) int {
 	start := d.Now()
-	repo, err := d.Client.FetchRepo(ctx)
+	repo, err := d.Client.FetchRepo(ctx, d.Filters)
 	if err != nil {
 		return reportFetchError(err, d.Stderr)
 	}
+
+	// Apply list filters (post-fetch). Query filters already narrowed the
+	// results server-side; list filters handle logic that cannot be expressed
+	// as GitHub search qualifiers (e.g. stack-position predicates).
+	repo.PRs = d.Filters.Apply(repo.PRs)
 
 	// Derive stack topology (stackId + stackPos) once, here, so every
 	// formatter receives consistently annotated input. Keeps presentation
@@ -58,7 +65,7 @@ func Run(ctx context.Context, d Deps) int {
 	ctx2.LatencyMs = latencyMs
 
 	if !d.Flags.Machine && len(repo.PRs) == 0 {
-		_, _ = fmt.Fprintf(d.Stdout, "\nNo open PRs authored by @%s in %s/%s.\n\n", repo.ViewerLogin, repo.Owner, repo.Name)
+		_, _ = fmt.Fprintf(d.Stdout, "\nNo open PRs matching the applied filters in %s/%s.\n\n", repo.Owner, repo.Name)
 		return exitNoPRs
 	}
 	out, err := d.Formatter.Format(repo, ctx2)

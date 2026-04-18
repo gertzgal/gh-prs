@@ -20,6 +20,11 @@ type Flags struct {
 	NoCache  bool
 	CacheTTL string
 	Stats    bool
+	// Authors holds the --author logins (repeatable flag). An empty slice
+	// means the caller should apply the "@me" default. composeFlags never
+	// injects "@me" here — that policy lives in runOnce where filter.Set
+	// is constructed.
+	Authors []string
 }
 
 // Machine reports whether the selected format is for machine consumption
@@ -33,7 +38,9 @@ func (f Flags) Machine() bool { return f.Format != render.FormatText }
 //   - GH_PRS_CACHE_TTL=<dur>     sets cache TTL if --cache-ttl not passed
 //   - GH_PRS_STATS=<truthy>      enables --stats
 //   - GH_PRS_FORMAT=<name>       sets format if --format not passed
-func composeFlags(cobraFormat string, cobraDebug, cobraNoCache bool, cobraCacheTTL string, cobraStats bool, env map[string]string) Flags {
+//   - GH_PRS_AUTHOR=<a[,b,...]>  sets author list if --author not passed;
+//     comma-separated for env (e.g. "alice,bob"), repeatable flag for CLI.
+func composeFlags(cobraFormat string, cobraDebug, cobraNoCache bool, cobraCacheTTL string, cobraStats bool, cobraAuthors []string, env map[string]string) Flags {
 	debug := cobraDebug
 	if !debug {
 		if v, ok := env["DEBUG"]; ok && v != "" {
@@ -68,11 +75,24 @@ func composeFlags(cobraFormat string, cobraDebug, cobraNoCache bool, cobraCacheT
 		format = DefaultFormat
 	}
 
+	// CLI flag wins; fall back to GH_PRS_AUTHOR (comma-separated).
+	authors := cobraAuthors
+	if len(authors) == 0 {
+		if v := env["GH_PRS_AUTHOR"]; v != "" {
+			for _, a := range strings.Split(v, ",") {
+				if t := strings.TrimSpace(a); t != "" {
+					authors = append(authors, t)
+				}
+			}
+		}
+	}
+
 	return Flags{
 		Format:   format,
 		Debug:    debug,
 		NoCache:  noCache,
 		CacheTTL: ttl,
 		Stats:    stats,
+		Authors:  authors,
 	}
 }

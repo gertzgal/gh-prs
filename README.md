@@ -62,6 +62,8 @@ gh prs -f toon              # same, short form
 gh prs --debug              # log the actual GraphQL request/response to stderr
 gh prs --no-cache           # bypass the disk cache
 gh prs --cache-ttl 2m       # override the default 60s cache TTL
+gh prs --author alice       # filter to PRs by alice
+gh prs --author alice --author bob  # alice OR bob (repeatable)
 gh prs --help
 ```
 
@@ -88,7 +90,7 @@ prs[4]{number,title,url,isDraft,headRefName,baseRefName,additions,deletions,chan
 
 **Stack membership is inline.** Every PR row carries `stackId` (1-based stack index, or `null` for standalone) and `stackPos` (e.g. `"2/4"`). Agents don't need to walk `baseRefName`/`headRefName` chains to understand topology — it's a column lookup. `stackId`/`stackPos` are also added to `--format json` output for consistency.
 
-Also honoured via `GH_PRS_FORMAT=<name>`.
+Also honoured via `GH_PRS_FORMAT=<name>` and `GH_PRS_AUTHOR=alice,bob` (comma-separated).
 
 **Caching.** Responses are cached to disk (platform cache dir, under `gh-prs/`)
 with a 60s TTL by default. Repeat invocations within that window skip the

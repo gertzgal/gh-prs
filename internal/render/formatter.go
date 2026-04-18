@@ -15,6 +15,12 @@ type Context struct {
 	// via `gh prs --stats`. Only consulted by the text formatter; machine
 	// formats (json, toon) always emit RateLimit as a structured field.
 	ShowStats bool
+	// FilterLabel is a short human-readable summary of the active filters for
+	// display in the repo header (e.g. "@alice, @bob"). An empty string means
+	// "no override" — the header falls back to showing the viewer's real login.
+	// Populated by filter.Set.Label() in the CLI layer; the render package has
+	// no knowledge of the filter package.
+	FilterLabel string
 }
 
 // Formatter renders a fetched repo into its target output form. Implementations

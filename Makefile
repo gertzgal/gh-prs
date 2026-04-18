@@ -11,6 +11,8 @@ BINARY := gh-prs
 EXT_NAME := prs
 ARGS ?=
 
+GOLANGCI_LINT_VERSION := v2.11.4
+
 .PHONY: help build run test cover fmt fmt-check vet lint check install uninstall dist clean
 
 help: ## Print this help
@@ -41,12 +43,13 @@ fmt-check: ## Fail if any Go files are unformatted (matches CI)
 vet: ## Run go vet
 	go vet ./...
 
-lint: ## Run golangci-lint (auto-installs to GOPATH/bin if missing)
-	@command -v golangci-lint >/dev/null 2>&1 || { \
-	  echo "installing golangci-lint..."; \
+lint: ## Run golangci-lint (auto-installs pinned version to GOPATH/bin if missing)
+	@installed=$$(golangci-lint version --format short 2>/dev/null || true); \
+	if [ "$$installed" != "$(GOLANGCI_LINT_VERSION)" ]; then \
+	  echo "installing golangci-lint $(GOLANGCI_LINT_VERSION)..."; \
 	  curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | \
-	    sh -s -- -b "$$(go env GOPATH)/bin" latest; \
-	}
+	    sh -s -- -b "$$(go env GOPATH)/bin" $(GOLANGCI_LINT_VERSION); \
+	fi
 	@PATH="$$(go env GOPATH)/bin:$$PATH" golangci-lint run ./...
 
 check: fmt-check vet lint test ## Run the full CI gate locally
