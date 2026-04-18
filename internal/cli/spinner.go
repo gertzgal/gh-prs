@@ -47,7 +47,7 @@ func (s *Spinner) Start() {
 			case <-s.stop:
 				return
 			case <-ticker.C:
-				fmt.Fprintf(s.out, "\r%s loading…", spinnerFrames[i])
+				_, _ = fmt.Fprintf(s.out, "\r%s loading…", spinnerFrames[i])
 				i = (i + 1) % len(spinnerFrames)
 			}
 		}
