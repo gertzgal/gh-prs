@@ -14,7 +14,7 @@ func TestTOON_EmitsTabularHeaderForNonEmpty(t *testing.T) {
 	if !strings.Contains(got, "prs[4]{") {
 		t.Fatalf("expected tabular header prs[4]{...}, got:\n%s", got)
 	}
-	header := "prs[4]{number,title,url,isDraft,headRefName,baseRefName,additions,deletions,changedFiles,reviewDecision,ciState,mergeStateStatus,stackId,stackPos}:"
+	header := "prs[4]{number,title,url,isDraft,headRefName,baseRefName,additions,deletions,changedFiles,reviewDecision,ciState,mergeStateStatus,author,stackId,stackPos}:"
 	if !strings.Contains(got, header) {
 		t.Fatalf("header row mismatch.\nwant substring: %s\ngot:\n%s", header, got)
 	}

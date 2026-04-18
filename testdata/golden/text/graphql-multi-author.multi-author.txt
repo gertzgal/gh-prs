@@ -1,0 +1,20 @@
+
+acme-org/widget · main · @alice
+
+  @alice · 2 PRs
+
+  stack · 2 PRs
+
+  ┬ #3001  ✓ ci  ● review  +210-5  [FEAT-1] Add authentication layer (1/2)  1/2
+  │          alice/feat-1-auth-base
+  └ #3002  ✓ ci  ○ review  +88-12  [FEAT-1] Wire authentication into routes (2/2)  2/2
+             alice/feat-1-auth-routes
+
+  @bob · 1 PR
+
+  standalone · 1 PR
+
+  #3003  ✓ ci  ● review  +113-2  [FEAT-2] Add rate limiting middleware
+           bob/feat-2-rate-limit
+
+  0ms · ● 1pt · 4996 remaining

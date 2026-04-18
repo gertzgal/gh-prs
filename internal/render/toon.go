@@ -27,6 +27,7 @@ type toonPRRow struct {
 	ReviewDecision   *string `toon:"reviewDecision"`
 	CiState          *string `toon:"ciState"`
 	MergeStateStatus string  `toon:"mergeStateStatus"`
+	Author           string  `toon:"author"`
 	StackID          *int    `toon:"stackId"`
 	StackPos         *string `toon:"stackPos"`
 }
@@ -87,6 +88,7 @@ func toPRRow(p model.PR) toonPRRow {
 		ReviewDecision:   nilOrString(string(p.ReviewDecision)),
 		CiState:          nilOrString(string(p.CiState)),
 		MergeStateStatus: p.MergeStateStatus,
+		Author:           p.Author,
 		StackID:          p.StackID,
 		StackPos:         p.StackPos,
 	}

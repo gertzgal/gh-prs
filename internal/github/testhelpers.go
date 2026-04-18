@@ -32,6 +32,7 @@ func DecodeForTests(raw []byte) (*model.Repo, error) {
 					ChangedFiles     int
 					ReviewDecision   model.ReviewDecision
 					MergeStateStatus string
+					Author           struct{ Login string }
 					Commits          struct {
 						Nodes []struct {
 							Commit struct {
@@ -76,6 +77,7 @@ func DecodeForTests(raw []byte) (*model.Repo, error) {
 			ReviewDecision:   n.ReviewDecision,
 			CiState:          ci,
 			MergeStateStatus: n.MergeStateStatus,
+			Author:           n.Author.Login,
 		})
 	}
 	return &model.Repo{

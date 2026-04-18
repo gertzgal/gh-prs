@@ -32,7 +32,10 @@ type prSearchQuery struct {
 				ChangedFiles     int
 				ReviewDecision   string
 				MergeStateStatus string
-				Commits          struct {
+				Author           struct {
+					Login string
+				}
+				Commits struct {
 					Nodes []struct {
 						Commit struct {
 							StatusCheckRollup *struct {
@@ -72,6 +75,7 @@ func translateQueryResult(q *prSearchQuery, owner, name string) *model.Repo {
 			ReviewDecision:   model.ReviewDecision(node.ReviewDecision),
 			CiState:          ci,
 			MergeStateStatus: node.MergeStateStatus,
+			Author:           node.Author.Login,
 		})
 	}
 
