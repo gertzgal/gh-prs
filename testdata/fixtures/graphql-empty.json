@@ -1,0 +1,20 @@
+{
+  "data": {
+    "rateLimit": {
+      "cost": 1,
+      "remaining": 4997,
+      "resetAt": "2026-04-17T17:21:19Z"
+    },
+    "viewer": {
+      "login": "octocat"
+    },
+    "repository": {
+      "defaultBranchRef": {
+        "name": "main"
+      }
+    },
+    "search": {
+      "nodes": []
+    }
+  }
+}

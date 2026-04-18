@@ -1,0 +1,14 @@
+# Built binary at repo root (rebuilt locally; committed only at cutover)
+/gh-prs
+
+# Worker worktrees (created inside project for sandbox access)
+/.worktrees/
+
+# Cross-compile output
+/dist/
+
+# Internal planning/design docs — not part of the published repo
+/planning/
+
+# OS cruft
+.DS_Store

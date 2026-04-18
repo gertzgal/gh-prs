@@ -1,0 +1,7 @@
+{
+  "errors": [
+    {
+      "message": "API rate limit exceeded for installation ID 12345."
+    }
+  ]
+}

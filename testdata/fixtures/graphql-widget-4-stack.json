@@ -1,0 +1,117 @@
+{
+  "data": {
+    "rateLimit": {
+      "cost": 1,
+      "remaining": 4999,
+      "resetAt": "2026-04-17T17:21:19Z"
+    },
+    "viewer": {
+      "login": "octocat"
+    },
+    "repository": {
+      "defaultBranchRef": {
+        "name": "main"
+      }
+    },
+    "search": {
+      "nodes": [
+        {
+          "number": 1001,
+          "title": "[ACME-100] Add feature foundation (1/3)",
+          "url": "https://github.com/acme-org/widget/pull/1001",
+          "isDraft": false,
+          "headRefName": "ACME-100/feature-1-foundation",
+          "baseRefName": "main",
+          "additions": 515,
+          "deletions": 59,
+          "changedFiles": 18,
+          "reviewDecision": "REVIEW_REQUIRED",
+          "mergeStateStatus": "BLOCKED",
+          "commits": {
+            "nodes": [
+              {
+                "commit": {
+                  "statusCheckRollup": {
+                    "state": "SUCCESS"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "number": 1002,
+          "title": "[ACME-100] Add feature UI (2/3)",
+          "url": "https://github.com/acme-org/widget/pull/1002",
+          "isDraft": false,
+          "headRefName": "ACME-100/feature-2-ui",
+          "baseRefName": "ACME-100/feature-1-foundation",
+          "additions": 342,
+          "deletions": 27,
+          "changedFiles": 12,
+          "reviewDecision": null,
+          "mergeStateStatus": "CLEAN",
+          "commits": {
+            "nodes": [
+              {
+                "commit": {
+                  "statusCheckRollup": {
+                    "state": "SUCCESS"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "number": 1003,
+          "title": "[ACME-100] Wire feature module (3/3)",
+          "url": "https://github.com/acme-org/widget/pull/1003",
+          "isDraft": false,
+          "headRefName": "ACME-100/feature-3-wiring",
+          "baseRefName": "ACME-100/feature-2-ui",
+          "additions": 218,
+          "deletions": 41,
+          "changedFiles": 9,
+          "reviewDecision": null,
+          "mergeStateStatus": "CLEAN",
+          "commits": {
+            "nodes": [
+              {
+                "commit": {
+                  "statusCheckRollup": {
+                    "state": "SUCCESS"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "number": 1004,
+          "title": "[ACME-100] Remove legacy helpers (cleanup)",
+          "url": "https://github.com/acme-org/widget/pull/1004",
+          "isDraft": false,
+          "headRefName": "ACME-100/feature-4-cleanup",
+          "baseRefName": "ACME-100/feature-3-wiring",
+          "additions": 47,
+          "deletions": 183,
+          "changedFiles": 7,
+          "reviewDecision": null,
+          "mergeStateStatus": "CLEAN",
+          "commits": {
+            "nodes": [
+              {
+                "commit": {
+                  "statusCheckRollup": {
+                    "state": "SUCCESS"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
