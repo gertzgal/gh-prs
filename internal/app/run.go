@@ -10,12 +10,9 @@ import (
 	"github.com/gertzgal/gh-prs/internal/github"
 	"github.com/gertzgal/gh-prs/internal/model"
 	"github.com/gertzgal/gh-prs/internal/render"
+	"github.com/gertzgal/gh-prs/internal/stacks"
 )
 
-// Exit codes duplicated as literals here rather than imported from internal/cli
-// to avoid the import cycle cli → app → cli (CONTRACTS.md import graph forbids
-// app importing cli; the task file's sample import list was inconsistent with
-// the graph). cli.ExitXxx remains the single source of truth for callers.
 const (
 	exitSuccess = 0
 	exitGhError = 1
@@ -51,6 +48,11 @@ func Run(ctx context.Context, d Deps) int {
 		return reportFetchError(err, d.Stderr)
 	}
 
+	// Derive stack topology (stackId + stackPos) once, here, so every
+	// formatter receives consistently annotated input. Keeps presentation
+	// code free of the stacks package.
+	repo.PRs = stacks.Annotate(repo.PRs, repo.DefaultBranch)
+
 	latencyMs := int(d.Now().Sub(start).Round(time.Millisecond) / time.Millisecond)
 	ctx2 := d.FormatCtx
 	ctx2.LatencyMs = latencyMs
@@ -59,7 +61,12 @@ func Run(ctx context.Context, d Deps) int {
 		fmt.Fprintf(d.Stdout, "\nNo open PRs authored by @%s in %s/%s.\n\n", repo.ViewerLogin, repo.Owner, repo.Name)
 		return exitNoPRs
 	}
-	_, _ = io.WriteString(d.Stdout, d.Formatter.Format(repo, ctx2))
+	out, err := d.Formatter.Format(repo, ctx2)
+	if err != nil {
+		fmt.Fprintf(d.Stderr, "gh prs: format: %v\n", err)
+		return exitGhError
+	}
+	_, _ = io.WriteString(d.Stdout, out)
 	if len(repo.PRs) > 0 {
 		return exitSuccess
 	}

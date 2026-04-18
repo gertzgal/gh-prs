@@ -9,7 +9,7 @@ import (
 
 func TestTOON_EmitsTabularHeaderForNonEmpty(t *testing.T) {
 	repo := loadRepo(t, "graphql-widget-4-stack")
-	got := TOON{}.Format(repo, Context{LatencyMs: 0})
+	got := mustFormat(t, TOON{}, repo, Context{LatencyMs: 0})
 
 	if !strings.Contains(got, "prs[4]{") {
 		t.Fatalf("expected tabular header prs[4]{...}, got:\n%s", got)
@@ -22,7 +22,7 @@ func TestTOON_EmitsTabularHeaderForNonEmpty(t *testing.T) {
 
 func TestTOON_EmptyPRsEmitsEmptyArrayHeader(t *testing.T) {
 	repo := loadRepo(t, "graphql-empty")
-	got := TOON{}.Format(repo, Context{LatencyMs: 0})
+	got := mustFormat(t, TOON{}, repo, Context{LatencyMs: 0})
 
 	if !strings.Contains(got, "prs[0]:") {
 		t.Fatalf("expected prs[0]: for empty, got:\n%s", got)
@@ -34,7 +34,7 @@ func TestTOON_EmptyPRsEmitsEmptyArrayHeader(t *testing.T) {
 
 func TestTOON_StandalonePRsHaveNullStackFields(t *testing.T) {
 	repo := loadRepo(t, "graphql-gadget-standalone")
-	got := TOON{}.Format(repo, Context{LatencyMs: 0})
+	got := mustFormat(t, TOON{}, repo, Context{LatencyMs: 0})
 
 	// Every row should end with `,null,null` (stackId, stackPos both null).
 	for _, line := range strings.Split(got, "\n") {
@@ -50,7 +50,7 @@ func TestTOON_StandalonePRsHaveNullStackFields(t *testing.T) {
 
 func TestTOON_RateLimitEmittedAsNestedObject(t *testing.T) {
 	repo := loadRepo(t, "graphql-widget-4-stack")
-	got := TOON{}.Format(repo, Context{LatencyMs: 0})
+	got := mustFormat(t, TOON{}, repo, Context{LatencyMs: 0})
 
 	if !strings.Contains(got, "rateLimit:\n  cost: ") {
 		t.Fatalf("expected nested rateLimit block, got:\n%s", got)
@@ -59,7 +59,7 @@ func TestTOON_RateLimitEmittedAsNestedObject(t *testing.T) {
 
 func TestTOON_LatencyIncluded(t *testing.T) {
 	repo := loadRepo(t, "graphql-widget-4-stack")
-	got := TOON{}.Format(repo, Context{LatencyMs: 475})
+	got := mustFormat(t, TOON{}, repo, Context{LatencyMs: 475})
 
 	if !strings.Contains(got, "latencyMs: 475") {
 		t.Fatalf("expected latencyMs: 475, got:\n%s", got)
@@ -68,7 +68,7 @@ func TestTOON_LatencyIncluded(t *testing.T) {
 
 func TestTOON_EndsWithNewline(t *testing.T) {
 	repo := loadRepo(t, "graphql-widget-4-stack")
-	got := TOON{}.Format(repo, Context{LatencyMs: 0})
+	got := mustFormat(t, TOON{}, repo, Context{LatencyMs: 0})
 
 	if !strings.HasSuffix(got, "\n") {
 		t.Fatalf("output must end with newline")
@@ -77,8 +77,8 @@ func TestTOON_EndsWithNewline(t *testing.T) {
 
 func TestTOON_ColorDoesNotAffectOutput(t *testing.T) {
 	repo := loadRepo(t, "graphql-widget-4-stack")
-	withColor := TOON{}.Format(repo, Context{Color: true, OSC8: true, LatencyMs: 42})
-	withoutColor := TOON{}.Format(repo, Context{Color: false, OSC8: false, LatencyMs: 42})
+	withColor := mustFormat(t, TOON{}, repo, Context{Color: true, OSC8: true, LatencyMs: 42})
+	withoutColor := mustFormat(t, TOON{}, repo, Context{Color: false, OSC8: false, LatencyMs: 42})
 
 	if withColor != withoutColor {
 		t.Fatalf("color/osc8 must not affect TOON output")
@@ -95,7 +95,7 @@ func TestTOON_NullReviewDecisionAndCiState(t *testing.T) {
 			{Number: 1, Title: "t", URL: "http://x", HeadRefName: "feat", BaseRefName: "main"},
 		},
 	}
-	got := TOON{}.Format(repo, Context{})
+	got := mustFormat(t, TOON{}, repo, Context{})
 
 	// Single-row table — the row should contain `,null,null,` for reviewDecision
 	// and ciState sandwich before mergeStateStatus.
@@ -106,8 +106,8 @@ func TestTOON_NullReviewDecisionAndCiState(t *testing.T) {
 
 func TestTOON_TokenEfficiencyVsJSON(t *testing.T) {
 	repo := loadRepo(t, "graphql-widget-4-stack")
-	toonOut := TOON{}.Format(repo, Context{LatencyMs: 0})
-	jsonOut := JSON{}.Format(repo, Context{LatencyMs: 0})
+	toonOut := mustFormat(t, TOON{}, repo, Context{LatencyMs: 0})
+	jsonOut := mustFormat(t, JSON{}, repo, Context{LatencyMs: 0})
 
 	if len(toonOut) >= len(jsonOut) {
 		t.Fatalf("TOON (%d) should be smaller than JSON (%d)", len(toonOut), len(jsonOut))

@@ -2,7 +2,6 @@ package render
 
 import (
 	"github.com/gertzgal/gh-prs/internal/model"
-	"github.com/gertzgal/gh-prs/internal/stacks"
 	"github.com/toon-format/toon-go"
 )
 
@@ -48,11 +47,9 @@ type repoDoc struct {
 	LatencyMs     int            `toon:"latencyMs"`
 }
 
-func (TOON) Format(repo *model.Repo, ctx Context) string {
-	annotated := stacks.Annotate(repo.PRs, repo.DefaultBranch)
-
-	rows := make([]toonPRRow, len(annotated))
-	for i, p := range annotated {
+func (TOON) Format(repo *model.Repo, ctx Context) (string, error) {
+	rows := make([]toonPRRow, len(repo.PRs))
+	for i, p := range repo.PRs {
 		rows[i] = toPRRow(p)
 	}
 
@@ -68,12 +65,12 @@ func (TOON) Format(repo *model.Repo, ctx Context) string {
 
 	out, err := toon.MarshalString(doc, toon.WithIndent(2))
 	if err != nil {
-		return ""
+		return "", err
 	}
 	if len(out) == 0 || out[len(out)-1] != '\n' {
 		out += "\n"
 	}
-	return out
+	return out, nil
 }
 
 func toPRRow(p model.PR) toonPRRow {
