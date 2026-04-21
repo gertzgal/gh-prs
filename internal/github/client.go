@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"strings"
-	"time"
 
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/cli/go-gh/v2/pkg/repository"
@@ -18,20 +16,13 @@ type Client interface {
 	FetchRepo(ctx context.Context, filters filter.Set) (*model.Repo, error)
 }
 
-// Options configures the GitHub client. Zero-value is safe: no debug, no cache.
+// Options configures the GitHub client. Zero-value is safe: no debug.
 type Options struct {
 	// Debug enables httpretty-style logging of the GraphQL request/response
 	// (URL, headers, body, timing) to DebugOut. Honors DebugColor for ANSI.
 	Debug      bool
 	DebugOut   io.Writer
 	DebugColor bool
-
-	// EnableCache turns on go-gh's disk cache for the GraphQL POST. When on,
-	// identical queries within CacheTTL are served from CacheDir without a
-	// network round trip. CacheDir empty => go-gh default.
-	EnableCache bool
-	CacheTTL    time.Duration
-	CacheDir    string
 }
 
 type githubClient struct {
@@ -59,15 +50,6 @@ func buildClientOptions(opts Options) api.ClientOptions {
 		co.LogVerboseHTTP = true
 		co.LogColorize = opts.DebugColor
 	}
-	if opts.EnableCache {
-		co.EnableCache = true
-		if opts.CacheTTL > 0 {
-			co.CacheTTL = opts.CacheTTL
-		}
-		if opts.CacheDir != "" {
-			co.CacheDir = opts.CacheDir
-		}
-	}
 	return co
 }
 
@@ -81,29 +63,14 @@ func (c *githubClient) FetchRepo(ctx context.Context, filters filter.Set) (*mode
 		return nil, fmt.Errorf("%w: %v", model.ErrRepoNotFound, err)
 	}
 
-	var q prSearchQuery
+	var q prRepoQuery
 	vars := map[string]any{
 		"owner": graphql.String(cur.Owner),
 		"name":  graphql.String(cur.Name),
-		"q":     graphql.String(buildSearchQuery(cur.Owner, cur.Name, filters)),
 	}
 
 	if err := c.gql.QueryWithContext(ctx, "PRsForViewer", &q, vars); err != nil {
 		return nil, translateError(err)
 	}
 	return translateQueryResult(&q, cur.Owner, cur.Name), nil
-}
-
-// buildSearchQuery assembles the GitHub Issues Search API query string from
-// the fixed base qualifiers and any fragments contributed by the filter set.
-// The base qualifiers (is:pr, is:open, repo:) are always present; filter
-// fragments are appended in the order returned by filters.QueryFragments().
-func buildSearchQuery(owner, name string, filters filter.Set) string {
-	parts := []string{
-		"is:pr",
-		"is:open",
-		"repo:" + owner + "/" + name,
-	}
-	parts = append(parts, filters.QueryFragments()...)
-	return strings.Join(parts, " ")
 }

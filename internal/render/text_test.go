@@ -3,6 +3,7 @@ package render
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gertzgal/gh-prs/internal/model"
 )
@@ -175,6 +176,30 @@ func TestText_FooterHiddenByDefault(t *testing.T) {
 	}
 }
 
+func TestText_Footer_CacheHit_ZeroCost(t *testing.T) {
+	rl := &model.RateLimit{Cost: 0, Remaining: 4655, ResetAt: "2026-04-17T20:00:00Z"}
+	repo := repoWith([]model.PR{samplePR(model.PR{})}, rl)
+	repo.CacheAge = 2 * time.Minute
+	out := mustFormat(t, Text{}, repo, Context{Color: false, OSC8: false, LatencyMs: 33, ShowStats: true})
+	if !strings.Contains(out, "● 0pt") {
+		t.Errorf("want ● 0pt on cache hit; got:\n%s", out)
+	}
+	if !strings.Contains(out, "cached 2m ago") {
+		t.Errorf("want cached 2m ago; got:\n%s", out)
+	}
+}
+
+func TestText_Footer_StaleAge(t *testing.T) {
+	rl := &model.RateLimit{Cost: 0, Remaining: 4655, ResetAt: "2026-04-17T20:00:00Z"}
+	repo := repoWith([]model.PR{samplePR(model.PR{})}, rl)
+	repo.CacheAge = 6 * time.Minute
+	repo.IsStale = true
+	out := mustFormat(t, Text{}, repo, Context{Color: false, OSC8: false, LatencyMs: 33, ShowStats: true})
+	if !strings.Contains(out, "stale 6m ago") {
+		t.Errorf("want stale 6m ago; got:\n%s", out)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Multi-author section rendering
 // ---------------------------------------------------------------------------
@@ -258,18 +283,17 @@ func TestText_MultiAuthor_AuthorOrderPreserved(t *testing.T) {
 	}
 }
 
-func TestText_MultiAuthor_MeResolvedToViewerLogin(t *testing.T) {
-	// ViewerLogin is "alice"; @me in AuthorOrder should resolve to alice's section
+func TestText_MultiAuthor_ResolvedLogin(t *testing.T) {
+	// @me resolution happens upstream in app.Run; render receives already-resolved logins.
 	prs := []model.PR{
 		samplePR(model.PR{Number: 5, Title: "Alice PR", Author: "alice", HeadRefName: "alice/feat", BaseRefName: "main"}),
 		samplePR(model.PR{Number: 6, Title: "Bob PR", Author: "bob", HeadRefName: "bob/feat", BaseRefName: "main"}),
 	}
-	ctx := Context{Color: false, OSC8: false, AuthorOrder: []string{"@me", "bob"}}
+	ctx := Context{Color: false, OSC8: false, AuthorOrder: []string{"alice", "bob"}}
 	out := mustFormat(t, Text{}, repoWith(prs, nil), ctx)
 
-	// @me → resolves to viewerLogin "alice"; header should show @alice
 	if !strings.Contains(out, "@alice · 1 PR") {
-		t.Errorf("want @alice · 1 PR (resolved from @me); got:\n%s", out)
+		t.Errorf("want @alice · 1 PR; got:\n%s", out)
 	}
 	if !strings.Contains(out, "@bob · 1 PR") {
 		t.Errorf("want @bob · 1 PR; got:\n%s", out)

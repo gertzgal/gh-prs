@@ -7,9 +7,8 @@ import (
 )
 
 // DefaultCacheTTL is the TTL applied when caching is enabled and no other
-// value is specified. Kept short because PR state (CI, review decision,
-// merge status) can change minute-to-minute.
-const DefaultCacheTTL = 60 * time.Second
+// value is specified. Five minutes balances freshness with point savings.
+const DefaultCacheTTL = 300 * time.Second
 
 // DefaultCacheDir returns the per-user cache directory for gh-prs entries.
 // Falls back to a sibling of the binary's temp dir if UserCacheDir is not

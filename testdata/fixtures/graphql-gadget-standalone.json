@@ -11,61 +11,61 @@
     "repository": {
       "defaultBranchRef": {
         "name": "main"
+      },
+      "pullRequests": {
+        "nodes": [
+          {
+            "number": 2001,
+            "title": "[ACME-200] Fix config loader error handling",
+            "url": "https://github.com/acme-org/gadget/pull/2001",
+            "isDraft": false,
+            "headRefName": "fix/ACME-200-config-loader",
+            "baseRefName": "main",
+            "additions": 84,
+            "deletions": 23,
+            "changedFiles": 4,
+            "reviewDecision": "REVIEW_REQUIRED",
+            "mergeStateStatus": "BLOCKED",
+            "author": {"login": "octocat"},
+            "commits": {
+              "nodes": [
+                {
+                  "commit": {
+                    "statusCheckRollup": {
+                      "state": "FAILURE"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "number": 2002,
+            "title": "[ACME-201] WIP: refactor cache invalidation",
+            "url": "https://github.com/acme-org/gadget/pull/2002",
+            "isDraft": true,
+            "headRefName": "feature/ACME-201-cache-refactor",
+            "baseRefName": "main",
+            "additions": 256,
+            "deletions": 12,
+            "changedFiles": 9,
+            "reviewDecision": "REVIEW_REQUIRED",
+            "mergeStateStatus": "BLOCKED",
+            "author": {"login": "octocat"},
+            "commits": {
+              "nodes": [
+                {
+                  "commit": {
+                    "statusCheckRollup": {
+                      "state": "FAILURE"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
       }
-    },
-    "search": {
-      "nodes": [
-        {
-          "number": 2001,
-          "title": "[ACME-200] Fix config loader error handling",
-          "url": "https://github.com/acme-org/gadget/pull/2001",
-          "isDraft": false,
-          "headRefName": "fix/ACME-200-config-loader",
-          "baseRefName": "main",
-          "additions": 84,
-          "deletions": 23,
-          "changedFiles": 4,
-          "reviewDecision": "REVIEW_REQUIRED",
-          "mergeStateStatus": "BLOCKED",
-          "author": {"login": "octocat"},
-          "commits": {
-            "nodes": [
-              {
-                "commit": {
-                  "statusCheckRollup": {
-                    "state": "FAILURE"
-                  }
-                }
-              }
-            ]
-          }
-        },
-        {
-          "number": 2002,
-          "title": "[ACME-201] WIP: refactor cache invalidation",
-          "url": "https://github.com/acme-org/gadget/pull/2002",
-          "isDraft": true,
-          "headRefName": "feature/ACME-201-cache-refactor",
-          "baseRefName": "main",
-          "additions": 256,
-          "deletions": 12,
-          "changedFiles": 9,
-          "reviewDecision": "REVIEW_REQUIRED",
-          "mergeStateStatus": "BLOCKED",
-          "author": {"login": "octocat"},
-          "commits": {
-            "nodes": [
-              {
-                "commit": {
-                  "statusCheckRollup": {
-                    "state": "FAILURE"
-                  }
-                }
-              }
-            ]
-          }
-        }
-      ]
     }
   }
 }

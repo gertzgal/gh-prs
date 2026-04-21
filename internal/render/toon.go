@@ -46,6 +46,9 @@ type repoDoc struct {
 	PRs           []toonPRRow    `toon:"prs"`
 	RateLimit     *rateLimitView `toon:"rateLimit"`
 	LatencyMs     int            `toon:"latencyMs"`
+	CacheAgeMs    int            `toon:"cacheAgeMs"`
+	FromCache     bool           `toon:"fromCache"`
+	IsStale       bool           `toon:"isStale"`
 }
 
 func (TOON) Format(repo *model.Repo, ctx Context) (string, error) {
@@ -62,6 +65,9 @@ func (TOON) Format(repo *model.Repo, ctx Context) (string, error) {
 		PRs:           rows,
 		RateLimit:     toRateLimitView(repo.RateLimit),
 		LatencyMs:     ctx.LatencyMs,
+		CacheAgeMs:    int(repo.CacheAge.Milliseconds()),
+		FromCache:     repo.CacheAge > 0,
+		IsStale:       repo.IsStale,
 	}
 
 	out, err := toon.MarshalString(doc, toon.WithIndent(2))

@@ -11,86 +11,86 @@
     "repository": {
       "defaultBranchRef": {
         "name": "main"
+      },
+      "pullRequests": {
+        "nodes": [
+          {
+            "number": 3001,
+            "title": "[FEAT-1] Add authentication layer (1/2)",
+            "url": "https://github.com/acme-org/widget/pull/3001",
+            "isDraft": false,
+            "headRefName": "alice/feat-1-auth-base",
+            "baseRefName": "main",
+            "additions": 210,
+            "deletions": 5,
+            "changedFiles": 8,
+            "reviewDecision": "REVIEW_REQUIRED",
+            "mergeStateStatus": "BLOCKED",
+            "author": {"login": "alice"},
+            "commits": {
+              "nodes": [
+                {
+                  "commit": {
+                    "statusCheckRollup": {
+                      "state": "SUCCESS"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "number": 3002,
+            "title": "[FEAT-1] Wire authentication into routes (2/2)",
+            "url": "https://github.com/acme-org/widget/pull/3002",
+            "isDraft": false,
+            "headRefName": "alice/feat-1-auth-routes",
+            "baseRefName": "alice/feat-1-auth-base",
+            "additions": 88,
+            "deletions": 12,
+            "changedFiles": 4,
+            "reviewDecision": null,
+            "mergeStateStatus": "CLEAN",
+            "author": {"login": "alice"},
+            "commits": {
+              "nodes": [
+                {
+                  "commit": {
+                    "statusCheckRollup": {
+                      "state": "SUCCESS"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "number": 3003,
+            "title": "[FEAT-2] Add rate limiting middleware",
+            "url": "https://github.com/acme-org/widget/pull/3003",
+            "isDraft": false,
+            "headRefName": "bob/feat-2-rate-limit",
+            "baseRefName": "main",
+            "additions": 113,
+            "deletions": 2,
+            "changedFiles": 3,
+            "reviewDecision": "REVIEW_REQUIRED",
+            "mergeStateStatus": "BLOCKED",
+            "author": {"login": "bob"},
+            "commits": {
+              "nodes": [
+                {
+                  "commit": {
+                    "statusCheckRollup": {
+                      "state": "SUCCESS"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
       }
-    },
-    "search": {
-      "nodes": [
-        {
-          "number": 3001,
-          "title": "[FEAT-1] Add authentication layer (1/2)",
-          "url": "https://github.com/acme-org/widget/pull/3001",
-          "isDraft": false,
-          "headRefName": "alice/feat-1-auth-base",
-          "baseRefName": "main",
-          "additions": 210,
-          "deletions": 5,
-          "changedFiles": 8,
-          "reviewDecision": "REVIEW_REQUIRED",
-          "mergeStateStatus": "BLOCKED",
-          "author": {"login": "alice"},
-          "commits": {
-            "nodes": [
-              {
-                "commit": {
-                  "statusCheckRollup": {
-                    "state": "SUCCESS"
-                  }
-                }
-              }
-            ]
-          }
-        },
-        {
-          "number": 3002,
-          "title": "[FEAT-1] Wire authentication into routes (2/2)",
-          "url": "https://github.com/acme-org/widget/pull/3002",
-          "isDraft": false,
-          "headRefName": "alice/feat-1-auth-routes",
-          "baseRefName": "alice/feat-1-auth-base",
-          "additions": 88,
-          "deletions": 12,
-          "changedFiles": 4,
-          "reviewDecision": null,
-          "mergeStateStatus": "CLEAN",
-          "author": {"login": "alice"},
-          "commits": {
-            "nodes": [
-              {
-                "commit": {
-                  "statusCheckRollup": {
-                    "state": "SUCCESS"
-                  }
-                }
-              }
-            ]
-          }
-        },
-        {
-          "number": 3003,
-          "title": "[FEAT-2] Add rate limiting middleware",
-          "url": "https://github.com/acme-org/widget/pull/3003",
-          "isDraft": false,
-          "headRefName": "bob/feat-2-rate-limit",
-          "baseRefName": "main",
-          "additions": 113,
-          "deletions": 2,
-          "changedFiles": 3,
-          "reviewDecision": "REVIEW_REQUIRED",
-          "mergeStateStatus": "BLOCKED",
-          "author": {"login": "bob"},
-          "commits": {
-            "nodes": [
-              {
-                "commit": {
-                  "statusCheckRollup": {
-                    "state": "SUCCESS"
-                  }
-                }
-              }
-            ]
-          }
-        }
-      ]
     }
   }
 }

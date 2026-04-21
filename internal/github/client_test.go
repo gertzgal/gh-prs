@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/cli/go-gh/v2/pkg/repository"
@@ -197,24 +198,26 @@ func TestFetchRepo_NullStatusCheckRollup(t *testing.T) {
 		"data": {
 			"rateLimit": null,
 			"viewer": {"login": "someone"},
-			"repository": {"defaultBranchRef": {"name": "main"}},
-			"search": {
-				"nodes": [
-					{
-						"number": 99,
-						"title": "test pr",
-						"url": "https://github.com/x/y/pull/99",
-						"isDraft": false,
-						"headRefName": "feat",
-						"baseRefName": "main",
-						"additions": 1,
-						"deletions": 0,
-						"changedFiles": 1,
-						"reviewDecision": null,
-						"mergeStateStatus": "CLEAN",
-						"commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]}
-					}
-				]
+			"repository": {
+				"defaultBranchRef": {"name": "main"},
+				"pullRequests": {
+					"nodes": [
+						{
+							"number": 99,
+							"title": "test pr",
+							"url": "https://github.com/x/y/pull/99",
+							"isDraft": false,
+							"headRefName": "feat",
+							"baseRefName": "main",
+							"additions": 1,
+							"deletions": 0,
+							"changedFiles": 1,
+							"reviewDecision": null,
+							"mergeStateStatus": "CLEAN",
+							"commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]}
+						}
+					]
+				}
 			}
 		}
 	}`)
@@ -248,51 +251,7 @@ func TestFetchRepo_RepoResolveError(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// buildSearchQuery — unit tests (white-box, same package)
-// ---------------------------------------------------------------------------
-
-func TestBuildSearchQuery_BaseQualifiersAlwaysPresent(t *testing.T) {
-	q := buildSearchQuery("acme", "widget", filter.Set{})
-	for _, want := range []string{"is:pr", "is:open", "repo:acme/widget"} {
-		if !strings.Contains(q, want) {
-			t.Errorf("query %q missing %q", q, want)
-		}
-	}
-}
-
-func TestBuildSearchQuery_ZeroFilters_NoAuthorQualifier(t *testing.T) {
-	q := buildSearchQuery("acme", "widget", filter.Set{})
-	if strings.Contains(q, "author:") {
-		t.Errorf("zero filter set should produce no author qualifier, got %q", q)
-	}
-}
-
-func TestBuildSearchQuery_SingleAuthor(t *testing.T) {
-	s := filter.NewSet(
-		[]filter.QueryFilter{filter.NewAuthorFilter([]string{"@me"})},
-		nil,
-	)
-	q := buildSearchQuery("acme", "widget", s)
-	want := "is:pr is:open repo:acme/widget author:@me"
-	if q != want {
-		t.Errorf("got %q, want %q", q, want)
-	}
-}
-
-func TestBuildSearchQuery_MultipleAuthors_ORed(t *testing.T) {
-	s := filter.NewSet(
-		[]filter.QueryFilter{filter.NewAuthorFilter([]string{"alice", "bob"})},
-		nil,
-	)
-	q := buildSearchQuery("acme", "widget", s)
-	want := "is:pr is:open repo:acme/widget author:alice author:bob"
-	if q != want {
-		t.Errorf("got %q, want %q", q, want)
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Dry-run: verify the correct "q" variable reaches the GitHub API
+// Query shape — regression guards for the repository.pullRequests migration
 // ---------------------------------------------------------------------------
 
 // captureRequestBody is a roundTripper that stores the raw request body and
@@ -317,7 +276,7 @@ func (rt *captureRoundTripper) RoundTrip(r *http.Request) (*http.Response, error
 	}, nil
 }
 
-func TestFetchRepo_DryRun_QueryContainsAuthorFragment(t *testing.T) {
+func TestFetchRepo_QueryShape_UsesRepositoryPullRequests(t *testing.T) {
 	rt := &captureRoundTripper{fixture: fixtureBytes(t, "graphql-empty")}
 	gql, err := api.NewGraphQLClient(api.ClientOptions{
 		Host:      "github.com",
@@ -328,20 +287,25 @@ func TestFetchRepo_DryRun_QueryContainsAuthorFragment(t *testing.T) {
 		t.Fatalf("NewGraphQLClient: %v", err)
 	}
 
-	s := filter.NewSet(
-		[]filter.QueryFilter{filter.NewAuthorFilter([]string{"alice"})},
-		nil,
-	)
 	c := newClientWith(gql, fakeLocator())
-	_, _ = c.FetchRepo(context.Background(), s)
+	_, _ = c.FetchRepo(context.Background(), filter.Set{})
 
 	body := string(rt.capturedBody)
-	if !strings.Contains(body, "author:alice") {
-		t.Errorf("expected request body to contain author:alice, got:\n%s", body)
+	if !strings.Contains(body, "repository(owner:") {
+		t.Errorf("expected request body to contain repository(owner:, got:\n%s", body)
+	}
+	if !strings.Contains(body, "pullRequests(") {
+		t.Errorf("expected request body to contain pullRequests(, got:\n%s", body)
+	}
+	if strings.Contains(body, "search(") {
+		t.Errorf("expected request body to NOT contain search(, got:\n%s", body)
+	}
+	if strings.Contains(body, "author:") {
+		t.Errorf("expected request body to NOT contain author:, got:\n%s", body)
 	}
 }
 
-func TestFetchRepo_DryRun_DefaultAuthorMe(t *testing.T) {
+func TestFetchRepo_QueryShape_ContainsOrderBy(t *testing.T) {
 	rt := &captureRoundTripper{fixture: fixtureBytes(t, "graphql-empty")}
 	gql, err := api.NewGraphQLClient(api.ClientOptions{
 		Host:      "github.com",
@@ -352,43 +316,46 @@ func TestFetchRepo_DryRun_DefaultAuthorMe(t *testing.T) {
 		t.Fatalf("NewGraphQLClient: %v", err)
 	}
 
-	// Simulate the CLI default: inject @me when no --author flag is given.
-	s := filter.NewSet(
-		[]filter.QueryFilter{filter.NewAuthorFilter([]string{"@me"})},
-		nil,
-	)
 	c := newClientWith(gql, fakeLocator())
-	_, _ = c.FetchRepo(context.Background(), s)
+	_, _ = c.FetchRepo(context.Background(), filter.Set{})
 
 	body := string(rt.capturedBody)
-	if !strings.Contains(body, "author:@me") {
-		t.Errorf("expected request body to contain author:@me, got:\n%s", body)
+	if !strings.Contains(body, "orderBy") {
+		t.Errorf("expected request body to contain orderBy, got:\n%s", body)
+	}
+	if !strings.Contains(body, "UPDATED_AT") {
+		t.Errorf("expected request body to contain UPDATED_AT, got:\n%s", body)
 	}
 }
 
-func TestFetchRepo_DryRun_MultipleAuthors(t *testing.T) {
-	rt := &captureRoundTripper{fixture: fixtureBytes(t, "graphql-empty")}
-	gql, err := api.NewGraphQLClient(api.ClientOptions{
-		Host:      "github.com",
-		AuthToken: "test-token",
-		Transport: rt,
-	})
+// ---------------------------------------------------------------------------
+// SWR cache-hit behaviour
+// ---------------------------------------------------------------------------
+
+func TestFetchRepo_CacheHit_ZeroCost(t *testing.T) {
+	cacheDir := t.TempDir()
+	inner := newClientWith(
+		fakeGraphQLClient(t, fixtureBytes(t, "graphql-widget-4-stack"), 200),
+		fakeLocator(),
+	)
+	swr := NewSWRClient(inner, cacheDir, 5*time.Minute)
+
+	// First call: cold miss, cost == 1.
+	repo1, err := swr.FetchRepo(context.Background(), filter.Set{})
 	if err != nil {
-		t.Fatalf("NewGraphQLClient: %v", err)
+		t.Fatalf("first FetchRepo: %v", err)
+	}
+	if repo1.RateLimit == nil || repo1.RateLimit.Cost != 1 {
+		t.Fatalf("first call: want cost 1, got %+v", repo1.RateLimit)
 	}
 
-	s := filter.NewSet(
-		[]filter.QueryFilter{filter.NewAuthorFilter([]string{"alice", "bob"})},
-		nil,
-	)
-	c := newClientWith(gql, fakeLocator())
-	_, _ = c.FetchRepo(context.Background(), s)
-
-	body := string(rt.capturedBody)
-	for _, frag := range []string{"author:alice", "author:bob"} {
-		if !strings.Contains(body, frag) {
-			t.Errorf("expected request body to contain %q, got:\n%s", frag, body)
-		}
+	// Second call: warm hit, cost == 0.
+	repo2, err := swr.FetchRepo(context.Background(), filter.Set{})
+	if err != nil {
+		t.Fatalf("second FetchRepo: %v", err)
+	}
+	if repo2.RateLimit == nil || repo2.RateLimit.Cost != 0 {
+		t.Errorf("second call: want cost 0, got %+v", repo2.RateLimit)
 	}
 }
 

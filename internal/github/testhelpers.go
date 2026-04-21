@@ -18,25 +18,25 @@ func DecodeForTests(raw []byte) (*model.Repo, error) {
 			Viewer     struct{ Login string }
 			Repository *struct {
 				DefaultBranchRef *struct{ Name string }
-			}
-			Search struct {
-				Nodes []struct {
-					Number           int
-					Title            string
-					URL              string `json:"url"`
-					IsDraft          bool
-					HeadRefName      string
-					BaseRefName      string
-					Additions        int
-					Deletions        int
-					ChangedFiles     int
-					ReviewDecision   model.ReviewDecision
-					MergeStateStatus string
-					Author           struct{ Login string }
-					Commits          struct {
-						Nodes []struct {
-							Commit struct {
-								StatusCheckRollup *struct{ State model.CiState }
+				PullRequests     struct {
+					Nodes []struct {
+						Number           int
+						Title            string
+						URL              string `json:"url"`
+						IsDraft          bool
+						HeadRefName      string
+						BaseRefName      string
+						Additions        int
+						Deletions        int
+						ChangedFiles     int
+						ReviewDecision   model.ReviewDecision
+						MergeStateStatus string
+						Author           struct{ Login string }
+						Commits          struct {
+							Nodes []struct {
+								Commit struct {
+									StatusCheckRollup *struct{ State model.CiState }
+								}
 							}
 						}
 					}
@@ -58,8 +58,8 @@ func DecodeForTests(raw []byte) (*model.Repo, error) {
 	if env.Data.Repository.DefaultBranchRef != nil {
 		defaultBranch = env.Data.Repository.DefaultBranchRef.Name
 	}
-	prs := make([]model.PR, 0, len(env.Data.Search.Nodes))
-	for _, n := range env.Data.Search.Nodes {
+	prs := make([]model.PR, 0, len(env.Data.Repository.PullRequests.Nodes))
+	for _, n := range env.Data.Repository.PullRequests.Nodes {
 		var ci model.CiState
 		if len(n.Commits.Nodes) > 0 && n.Commits.Nodes[0].Commit.StatusCheckRollup != nil {
 			ci = n.Commits.Nodes[0].Commit.StatusCheckRollup.State

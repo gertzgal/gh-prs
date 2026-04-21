@@ -1,6 +1,10 @@
 package filter
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/gertzgal/gh-prs/internal/model"
+)
 
 // AuthorFilter restricts results to PRs authored by specific GitHub users.
 //
@@ -28,6 +32,25 @@ func (f AuthorFilter) QueryFragments() []string {
 		frags[i] = "author:" + login
 	}
 	return frags
+}
+
+// Apply implements ListFilter. Keeps PRs whose author (case-insensitive)
+// matches any of the resolved logins. An empty Logins slice is a no-op.
+func (f AuthorFilter) Apply(prs []model.PR) []model.PR {
+	if len(f.Logins) == 0 {
+		return prs
+	}
+	allowed := make(map[string]struct{}, len(f.Logins))
+	for _, login := range f.Logins {
+		allowed[strings.ToLower(login)] = struct{}{}
+	}
+	out := make([]model.PR, 0, len(prs))
+	for _, pr := range prs {
+		if _, ok := allowed[strings.ToLower(pr.Author)]; ok {
+			out = append(out, pr)
+		}
+	}
+	return out
 }
 
 // Label implements Labeler. Returns a compact display string for use in UI

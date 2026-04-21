@@ -1,6 +1,9 @@
 package model
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"time"
+)
 
 type ReviewDecision string
 
@@ -91,10 +94,37 @@ type RateLimit struct {
 }
 
 type Repo struct {
-	Owner         string     `json:"owner"`
-	Name          string     `json:"name"`
-	DefaultBranch string     `json:"defaultBranch"`
-	ViewerLogin   string     `json:"viewerLogin"`
-	PRs           []PR       `json:"prs"`
-	RateLimit     *RateLimit `json:"rateLimit"`
+	Owner         string        `json:"owner"`
+	Name          string        `json:"name"`
+	DefaultBranch string        `json:"defaultBranch"`
+	ViewerLogin   string        `json:"viewerLogin"`
+	PRs           []PR          `json:"prs"`
+	RateLimit     *RateLimit    `json:"rateLimit"`
+	CacheAge      time.Duration `json:"-"`
+	IsStale       bool          `json:"-"`
+}
+
+// Clone returns a deep copy of the repo.
+func (r *Repo) Clone() *Repo {
+	if r == nil {
+		return nil
+	}
+	cloned := &Repo{
+		Owner:         r.Owner,
+		Name:          r.Name,
+		DefaultBranch: r.DefaultBranch,
+		ViewerLogin:   r.ViewerLogin,
+		PRs:           make([]PR, len(r.PRs)),
+		CacheAge:      r.CacheAge,
+		IsStale:       r.IsStale,
+	}
+	copy(cloned.PRs, r.PRs)
+	if r.RateLimit != nil {
+		cloned.RateLimit = &RateLimit{
+			Cost:      r.RateLimit.Cost,
+			Remaining: r.RateLimit.Remaining,
+			ResetAt:   r.RateLimit.ResetAt,
+		}
+	}
+	return cloned
 }
