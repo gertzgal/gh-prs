@@ -13,7 +13,7 @@ ARGS ?=
 
 GOLANGCI_LINT_VERSION := v2.11.4
 
-.PHONY: help build run test cover fmt fmt-check vet lint check install uninstall dist clean
+.PHONY: help build run test cover fmt fmt-check vet lint check install uninstall dist clean demo
 
 help: ## Print this help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage: make <target>\n\nTargets:\n"} \
