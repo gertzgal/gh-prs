@@ -13,7 +13,7 @@ ARGS ?=
 
 GOLANGCI_LINT_VERSION := v2.11.4
 
-.PHONY: help build run test cover fmt fmt-check vet lint check install uninstall dist clean
+.PHONY: help build run test cover fmt fmt-check vet lint check install uninstall dist clean demo
 
 help: ## Print this help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage: make <target>\n\nTargets:\n"} \
@@ -71,3 +71,6 @@ dist: ## Cross-compile release binaries into ./dist (delegates to script/build.s
 clean: ## Remove build artifacts
 	rm -f ./$(BINARY)
 	rm -rf ./dist
+
+demo: ## Run against the demo repo at ../gh-prs-demo-repo
+	cd ../gh-prs-demo-repo && ../gh-prs/gh-prs
