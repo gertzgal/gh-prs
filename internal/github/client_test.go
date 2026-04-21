@@ -339,6 +339,7 @@ func TestFetchRepo_CacheHit_ZeroCost(t *testing.T) {
 		fakeLocator(),
 	)
 	swr := NewSWRClient(inner, cacheDir, 5*time.Minute)
+	swr.accountID = func() string { return "testuser" }
 
 	// First call: cold miss, cost == 1.
 	repo1, err := swr.FetchRepo(context.Background(), filter.Set{})

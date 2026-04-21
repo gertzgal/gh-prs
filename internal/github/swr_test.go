@@ -249,6 +249,8 @@ func TestSWR_LingerCap_CancelsInFlightRequest(t *testing.T) {
 	}
 
 	close(block)
+	// Ensure the background goroutine finishes writing before t.TempDir cleanup.
+	swr.LingerWait()
 }
 
 func TestSWR_InnerError_Propagated(t *testing.T) {
