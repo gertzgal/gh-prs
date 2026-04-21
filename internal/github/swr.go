@@ -37,10 +37,14 @@ func NewSWRClient(inner Client, cacheDir string, ttl time.Duration) *SWRClient {
 	if ttl <= 0 {
 		ttl = defaultCacheTTL
 	}
+	resolve := repository.Current
+	if gc, ok := inner.(*githubClient); ok {
+		resolve = gc.resolve
+	}
 	return &SWRClient{
 		inner:      inner,
 		store:      newSWRStore(cacheDir),
-		resolve:    repository.Current,
+		resolve:    resolve,
 		accountID:  accountID,
 		ttl:        ttl,
 		lingerCap:  defaultLingerCap,
