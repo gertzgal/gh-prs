@@ -128,7 +128,7 @@ type authorSection struct {
 // the order of authorOrder. Logins are already resolved ("@me" substituted
 // upstream in app.Run). Matching is case-insensitive to handle the common
 // case where the user types a lowercase login but GitHub preserves the
-// original case (e.g. "chenalon" matches PR author "ChenAlon").
+// original case (e.g. "gertzgal" matches PR author "GertzGal").
 func groupByAuthor(g stacks.Grouped, authorOrder []string) []authorSection {
 	sections := make([]authorSection, len(authorOrder))
 	// idx maps the lowercase login to the section index.
