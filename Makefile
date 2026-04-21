@@ -71,3 +71,6 @@ dist: ## Cross-compile release binaries into ./dist (delegates to script/build.s
 clean: ## Remove build artifacts
 	rm -f ./$(BINARY)
 	rm -rf ./dist
+
+demo: ## Run against the demo repo at ../gh-prs-demo-repo
+	cd ../gh-prs-demo-repo && ../gh-prs/gh-prs
