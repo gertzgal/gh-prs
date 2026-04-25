@@ -17,3 +17,6 @@
 
 .env
 .envrc
+
+# Codex local workspace state
+.codex/

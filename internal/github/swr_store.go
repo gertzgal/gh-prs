@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/cli/go-gh/v2/pkg/auth"
 	"github.com/cli/go-gh/v2/pkg/config"
+	"github.com/gertzgal/gh-prs/internal/filter"
 	"github.com/gertzgal/gh-prs/internal/model"
 )
 
@@ -25,16 +27,21 @@ func newSWRStore(baseDir string) *swrStore {
 	return &swrStore{baseDir: baseDir}
 }
 
-// path returns the cache file path for a given account + repo.
-func (s *swrStore) path(accountID, owner, name string) string {
+// path returns the cache file path for a given account + repo + query filter set.
+func (s *swrStore) path(accountID, owner, name, filterKey string) string {
 	safe := func(s string) string { return strings.ReplaceAll(s, "/", "_") }
-	return filepath.Join(s.baseDir, "swr", safe(accountID), fmt.Sprintf("%s_%s.json", safe(owner), safe(name)))
+	return filepath.Join(
+		s.baseDir,
+		"swr",
+		safe(accountID),
+		fmt.Sprintf("%s_%s_%s.json", safe(owner), safe(name), filterKey),
+	)
 }
 
 // read loads an entry from disk. Returns (nil, nil) if the file does not exist
 // or the version is stale.
-func (s *swrStore) read(accountID, owner, name string) (*swrEntry, error) {
-	p := s.path(accountID, owner, name)
+func (s *swrStore) read(accountID, owner, name, filterKey string) (*swrEntry, error) {
+	p := s.path(accountID, owner, name, filterKey)
 	raw, err := os.ReadFile(p)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -56,8 +63,8 @@ func (s *swrStore) read(accountID, owner, name string) (*swrEntry, error) {
 }
 
 // write persists an entry to disk.
-func (s *swrStore) write(accountID, owner, name string, repo *model.Repo) error {
-	p := s.path(accountID, owner, name)
+func (s *swrStore) write(accountID, owner, name, filterKey string, repo *model.Repo) error {
+	p := s.path(accountID, owner, name, filterKey)
 	if err := os.MkdirAll(filepath.Dir(p), 0750); err != nil {
 		return err
 	}
@@ -71,6 +78,16 @@ func (s *swrStore) write(accountID, owner, name string, repo *model.Repo) error 
 		return err
 	}
 	return os.WriteFile(p, raw, 0640)
+}
+
+func cacheFilterKey(filters filter.Set) string {
+	frags := append([]string(nil), filters.QueryFragments()...)
+	if len(frags) == 0 {
+		return "all"
+	}
+	sort.Strings(frags)
+	sum := sha256.Sum256([]byte(strings.Join(frags, "\x00")))
+	return fmt.Sprintf("%x", sum)[:16]
 }
 
 // accountID returns a stable identifier for the current GitHub account.

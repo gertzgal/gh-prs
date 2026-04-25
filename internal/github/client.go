@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/cli/go-gh/v2/pkg/repository"
@@ -63,14 +64,29 @@ func (c *githubClient) FetchRepo(ctx context.Context, filters filter.Set) (*mode
 		return nil, fmt.Errorf("%w: %v", model.ErrRepoNotFound, err)
 	}
 
-	var q prRepoQuery
+	var q prSearchQuery
 	vars := map[string]any{
 		"owner": graphql.String(cur.Owner),
 		"name":  graphql.String(cur.Name),
+		"q":     graphql.String(buildSearchQuery(cur.Owner, cur.Name, filters)),
 	}
 
 	if err := c.gql.QueryWithContext(ctx, "PRsForViewer", &q, vars); err != nil {
 		return nil, translateError(err)
 	}
 	return translateQueryResult(&q, cur.Owner, cur.Name), nil
+}
+
+// buildSearchQuery assembles the GitHub Issues Search API query string from
+// the fixed base qualifiers and any fragments contributed by the filter set.
+// The base qualifiers (is:pr, is:open, repo:) are always present; filter
+// fragments are appended in the order returned by filters.QueryFragments().
+func buildSearchQuery(owner, name string, filters filter.Set) string {
+	parts := []string{
+		"is:pr",
+		"is:open",
+		"repo:" + owner + "/" + name,
+	}
+	parts = append(parts, filters.QueryFragments()...)
+	return strings.Join(parts, " ")
 }

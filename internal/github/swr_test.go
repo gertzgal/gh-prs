@@ -44,10 +44,10 @@ func newFakeRepo() *model.Repo {
 func TestSWR_ColdMiss_FetchesAndWrites(t *testing.T) {
 	cacheDir := t.TempDir()
 	inner := &fakeInnerClient{repo: newFakeRepo()}
-	swr := NewSWRClient(inner, cacheDir, 5*time.Minute)
-	swr.resolve = func() (repository.Repository, error) {
+	resolve := func() (repository.Repository, error) {
 		return repository.Repository{Owner: "acme", Name: "widget"}, nil
 	}
+	swr := NewSWRClient(inner, resolve, cacheDir, 5*time.Minute)
 	swr.accountID = func() string { return "testuser" }
 
 	repo, err := swr.FetchRepo(context.Background(), filter.Set{})
@@ -63,7 +63,7 @@ func TestSWR_ColdMiss_FetchesAndWrites(t *testing.T) {
 
 	// Verify disk was written.
 	store := newSWRStore(cacheDir)
-	entry, err := store.read("testuser", "acme", "widget")
+	entry, err := store.read("testuser", "acme", "widget", cacheFilterKey(filter.Set{}))
 	if err != nil {
 		t.Fatalf("store.read: %v", err)
 	}
@@ -75,10 +75,10 @@ func TestSWR_ColdMiss_FetchesAndWrites(t *testing.T) {
 func TestSWR_WarmHit_ServesInstantly(t *testing.T) {
 	cacheDir := t.TempDir()
 	inner := &fakeInnerClient{repo: newFakeRepo()}
-	swr := NewSWRClient(inner, cacheDir, 5*time.Minute)
-	swr.resolve = func() (repository.Repository, error) {
+	resolve := func() (repository.Repository, error) {
 		return repository.Repository{Owner: "acme", Name: "widget"}, nil
 	}
+	swr := NewSWRClient(inner, resolve, cacheDir, 5*time.Minute)
 	swr.accountID = func() string { return "testuser" }
 
 	// Cold miss to populate cache.
@@ -106,17 +106,17 @@ func TestSWR_WarmHit_ServesInstantly(t *testing.T) {
 func TestSWR_HardExpired_BlocksOnFetch(t *testing.T) {
 	cacheDir := t.TempDir()
 	inner := &fakeInnerClient{repo: newFakeRepo()}
-	swr := NewSWRClient(inner, cacheDir, 5*time.Minute)
-	swr.resolve = func() (repository.Repository, error) {
+	resolve := func() (repository.Repository, error) {
 		return repository.Repository{Owner: "acme", Name: "widget"}, nil
 	}
+	swr := NewSWRClient(inner, resolve, cacheDir, 5*time.Minute)
 	swr.accountID = func() string { return "testuser" }
 
 	// Seed an old cache entry.
 	store := newSWRStore(cacheDir)
 	oldRepo := newFakeRepo()
 	oldRepo.RateLimit.Cost = 1
-	_ = store.write("testuser", "acme", "widget", oldRepo)
+	_ = store.write("testuser", "acme", "widget", cacheFilterKey(filter.Set{}), oldRepo)
 
 	// Rewind WrittenAt by advancing the clock.
 	swr.clock = func() time.Time {
@@ -138,14 +138,14 @@ func TestSWR_HardExpired_BlocksOnFetch(t *testing.T) {
 func TestSWR_WrongVersion_TreatedAsMiss(t *testing.T) {
 	cacheDir := t.TempDir()
 	inner := &fakeInnerClient{repo: newFakeRepo()}
-	swr := NewSWRClient(inner, cacheDir, 5*time.Minute)
-	swr.resolve = func() (repository.Repository, error) {
+	resolve := func() (repository.Repository, error) {
 		return repository.Repository{Owner: "acme", Name: "widget"}, nil
 	}
+	swr := NewSWRClient(inner, resolve, cacheDir, 5*time.Minute)
 	swr.accountID = func() string { return "testuser" }
 
 	// Write a v1 entry manually.
-	p := filepath.Join(cacheDir, "swr", "testuser", "acme_widget.json")
+	p := filepath.Join(cacheDir, "swr", "testuser", "acme_widget_"+cacheFilterKey(filter.Set{})+".json")
 	_ = os.MkdirAll(filepath.Dir(p), 0750)
 	v1 := []byte(`{"v":1,"t":"2026-04-17T00:00:00Z","data":{"owner":"acme","name":"widget"}}`)
 	_ = os.WriteFile(p, v1, 0640)
@@ -166,15 +166,15 @@ func TestSWR_ConcurrentRefresh_Deduplicated(t *testing.T) {
 	cacheDir := t.TempDir()
 	block := make(chan struct{})
 	inner := &fakeInnerClient{repo: newFakeRepo(), blockChan: block}
-	swr := NewSWRClient(inner, cacheDir, 5*time.Minute)
-	swr.resolve = func() (repository.Repository, error) {
+	resolve := func() (repository.Repository, error) {
 		return repository.Repository{Owner: "acme", Name: "widget"}, nil
 	}
+	swr := NewSWRClient(inner, resolve, cacheDir, 5*time.Minute)
 	swr.accountID = func() string { return "testuser" }
 
 	// Seed a soft-stale entry.
 	store := newSWRStore(cacheDir)
-	_ = store.write("testuser", "acme", "widget", newFakeRepo())
+	_ = store.write("testuser", "acme", "widget", cacheFilterKey(filter.Set{}), newFakeRepo())
 	swr.clock = func() time.Time {
 		return time.Now().Add(6 * time.Minute)
 	}
@@ -202,10 +202,10 @@ func TestSWR_WriteFailure_Silent(t *testing.T) {
 	_ = os.WriteFile(badDir, []byte("x"), 0644)
 
 	inner := &fakeInnerClient{repo: newFakeRepo()}
-	swr := NewSWRClient(inner, badDir, 5*time.Minute)
-	swr.resolve = func() (repository.Repository, error) {
+	resolve := func() (repository.Repository, error) {
 		return repository.Repository{Owner: "acme", Name: "widget"}, nil
 	}
+	swr := NewSWRClient(inner, resolve, badDir, 5*time.Minute)
 	swr.accountID = func() string { return "testuser" }
 
 	// Should not panic even though cache write fails.
@@ -222,16 +222,16 @@ func TestSWR_LingerCap_CancelsInFlightRequest(t *testing.T) {
 	cacheDir := t.TempDir()
 	block := make(chan struct{})
 	inner := &fakeInnerClient{repo: newFakeRepo(), blockChan: block}
-	swr := NewSWRClient(inner, cacheDir, 5*time.Minute)
-	swr.resolve = func() (repository.Repository, error) {
+	resolve := func() (repository.Repository, error) {
 		return repository.Repository{Owner: "acme", Name: "widget"}, nil
 	}
+	swr := NewSWRClient(inner, resolve, cacheDir, 5*time.Minute)
 	swr.accountID = func() string { return "testuser" }
 	swr.lingerCap = 50 * time.Millisecond
 
 	// Seed a soft-stale entry.
 	store := newSWRStore(cacheDir)
-	_ = store.write("testuser", "acme", "widget", newFakeRepo())
+	_ = store.write("testuser", "acme", "widget", cacheFilterKey(filter.Set{}), newFakeRepo())
 	swr.clock = func() time.Time {
 		return time.Now().Add(6 * time.Minute)
 	}
@@ -256,14 +256,43 @@ func TestSWR_LingerCap_CancelsInFlightRequest(t *testing.T) {
 func TestSWR_InnerError_Propagated(t *testing.T) {
 	cacheDir := t.TempDir()
 	inner := &fakeInnerClient{err: errors.New("network error")}
-	swr := NewSWRClient(inner, cacheDir, 5*time.Minute)
-	swr.resolve = func() (repository.Repository, error) {
+	resolve := func() (repository.Repository, error) {
 		return repository.Repository{Owner: "acme", Name: "widget"}, nil
 	}
+	swr := NewSWRClient(inner, resolve, cacheDir, 5*time.Minute)
 	swr.accountID = func() string { return "testuser" }
 
 	_, err := swr.FetchRepo(context.Background(), filter.Set{})
 	if err == nil {
 		t.Fatal("want error, got nil")
+	}
+}
+
+func TestSWR_FilteredViewsUseDistinctCacheKeys(t *testing.T) {
+	cacheDir := t.TempDir()
+	inner := &fakeInnerClient{repo: newFakeRepo()}
+	resolve := func() (repository.Repository, error) {
+		return repository.Repository{Owner: "acme", Name: "widget"}, nil
+	}
+	swr := NewSWRClient(inner, resolve, cacheDir, 5*time.Minute)
+	swr.accountID = func() string { return "testuser" }
+
+	alice := filter.NewSet(
+		[]filter.QueryFilter{filter.NewAuthorFilter([]string{"alice"})},
+		nil,
+	)
+	bob := filter.NewSet(
+		[]filter.QueryFilter{filter.NewAuthorFilter([]string{"bob"})},
+		nil,
+	)
+
+	if _, err := swr.FetchRepo(context.Background(), alice); err != nil {
+		t.Fatalf("alice FetchRepo: %v", err)
+	}
+	if _, err := swr.FetchRepo(context.Background(), bob); err != nil {
+		t.Fatalf("bob FetchRepo: %v", err)
+	}
+	if inner.callCount.Load() != 2 {
+		t.Fatalf("want 2 inner calls for distinct filter keys, got %d", inner.callCount.Load())
 	}
 }

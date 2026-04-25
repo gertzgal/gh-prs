@@ -33,13 +33,14 @@ type SWRClient struct {
 }
 
 // NewSWRClient wraps the given client with SWR caching.
-func NewSWRClient(inner Client, cacheDir string, ttl time.Duration) *SWRClient {
+func NewSWRClient(
+	inner Client,
+	resolve func() (repository.Repository, error),
+	cacheDir string,
+	ttl time.Duration,
+) *SWRClient {
 	if ttl <= 0 {
 		ttl = defaultCacheTTL
-	}
-	resolve := repository.Current
-	if gc, ok := inner.(*githubClient); ok {
-		resolve = gc.resolve
 	}
 	return &SWRClient{
 		inner:      inner,
@@ -60,6 +61,7 @@ func (c *SWRClient) FetchRepo(ctx context.Context, filters filter.Set) (*model.R
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", model.ErrRepoNotFound, err)
 	}
+	filterKey := cacheFilterKey(filters)
 
 	id := c.accountID()
 	if id == "unknown" {
@@ -67,14 +69,14 @@ func (c *SWRClient) FetchRepo(ctx context.Context, filters filter.Set) (*model.R
 		return c.inner.FetchRepo(ctx, filters)
 	}
 
-	entry, storeErr := c.store.read(id, cur.Owner, cur.Name)
+	entry, storeErr := c.store.read(id, cur.Owner, cur.Name, filterKey)
 	if storeErr != nil {
 		// Store read failed; fall back to fresh fetch and try to write.
 		repo, err := c.inner.FetchRepo(ctx, filters)
 		if err != nil {
 			return nil, err
 		}
-		_ = c.store.write(id, cur.Owner, cur.Name, repo)
+		_ = c.store.write(id, cur.Owner, cur.Name, filterKey, repo)
 		return repo, nil
 	}
 
@@ -91,7 +93,7 @@ func (c *SWRClient) FetchRepo(ctx context.Context, filters filter.Set) (*model.R
 		if err != nil {
 			return nil, err
 		}
-		_ = c.store.write(id, cur.Owner, cur.Name, repo)
+		_ = c.store.write(id, cur.Owner, cur.Name, filterKey, repo)
 		return repo, nil
 	}
 
@@ -106,17 +108,17 @@ func (c *SWRClient) FetchRepo(ctx context.Context, filters filter.Set) (*model.R
 	if repo.IsStale {
 		// Soft stale: trigger background refresh.
 		c.wg.Add(1)
-		go c.refresh(id, cur.Owner, cur.Name, filters)
+		go c.refresh(id, cur.Owner, cur.Name, filterKey, filters)
 	}
 
 	return repo, nil
 }
 
-func (c *SWRClient) refresh(id, owner, name string, filters filter.Set) {
+func (c *SWRClient) refresh(id, owner, name, filterKey string, filters filter.Set) {
 	defer c.wg.Done()
 
 	c.mu.Lock()
-	key := fmt.Sprintf("%s/%s/%s", id, owner, name)
+	key := fmt.Sprintf("%s/%s/%s/%s", id, owner, name, filterKey)
 	if c.refreshing[key] {
 		c.mu.Unlock()
 		return
@@ -137,7 +139,7 @@ func (c *SWRClient) refresh(id, owner, name string, filters filter.Set) {
 	if err != nil {
 		return
 	}
-	_ = c.store.write(id, owner, name, repo)
+	_ = c.store.write(id, owner, name, filterKey, repo)
 }
 
 // LingerWait blocks until all background refreshes complete or the linger cap

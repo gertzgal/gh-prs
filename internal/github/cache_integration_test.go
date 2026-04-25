@@ -46,7 +46,7 @@ func TestSWRIntegration_WarmHit_SecondCallReadsDisk(t *testing.T) {
 	}
 
 	inner := newInnerClient()
-	swr := NewSWRClient(inner, cacheDir, 30*time.Second)
+	swr := NewSWRClient(inner, fakeLocator(), cacheDir, 30*time.Second)
 	swr.accountID = func() string { return "testuser" }
 
 	// First call: cold miss, hits network.
@@ -63,7 +63,7 @@ func TestSWRIntegration_WarmHit_SecondCallReadsDisk(t *testing.T) {
 
 	// Second call: warm hit, no network.
 	inner2 := newInnerClient()
-	swr2 := NewSWRClient(inner2, cacheDir, 30*time.Second)
+	swr2 := NewSWRClient(inner2, fakeLocator(), cacheDir, 30*time.Second)
 	swr2.accountID = func() string { return "testuser" }
 	repo2, err := swr2.FetchRepo(context.Background(), filter.Set{})
 	if err != nil {

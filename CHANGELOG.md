@@ -28,12 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Breaking:** `--json` removed — use `--format json` instead.
-- GraphQL query switched from `search` to `repository.pullRequests` with
-  `orderBy: {field: UPDATED_AT, direction: DESC}` to restore chronological
-  ordering and simplify the query.
-- `@me` author filter is now resolved post-fetch using the viewer login from
-  the GraphQL response, enabling accurate client-side filtering with a single
-  shared cache key.
+- GraphQL fetch semantics remain filter-aware: author filters still shape the
+  upstream search query, while `@me` is additionally resolved post-fetch using
+  the viewer login from the GraphQL response for list filtering and rendering.
+- SWR cache entries are now scoped by account, repo, and effective query
+  filters so different author views cannot collide on disk.
 - `--debug` now logs the actual GraphQL request/response — URL, headers, query
   body, variables, response body, timing — via go-gh's httpretty logger. The
   previous static "REST equivalent" block is still printed above it for

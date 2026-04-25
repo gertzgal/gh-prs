@@ -109,7 +109,7 @@ func runOnce(flags Flags, env map[string]string, stdout, stderr io.Writer) int {
 	var swr *github.SWRClient
 	if !flags.NoCache {
 		ttl, _ := github.ParseCacheTTL(flags.CacheTTL)
-		swr = github.NewSWRClient(client, github.DefaultCacheDir(), ttl)
+		swr = github.NewSWRClient(client, repository.Current, github.DefaultCacheDir(), ttl)
 		client = swr
 	}
 

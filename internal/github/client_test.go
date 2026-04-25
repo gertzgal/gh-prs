@@ -3,6 +3,7 @@ package github
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -54,7 +55,40 @@ func fixtureBytes(t *testing.T, name string) []byte {
 	if err != nil {
 		t.Fatalf("read fixture %s: %v", name, err)
 	}
-	return raw
+	return normalizeSearchFixture(t, raw)
+}
+
+func normalizeSearchFixture(t *testing.T, raw []byte) []byte {
+	t.Helper()
+
+	var env map[string]any
+	if err := json.Unmarshal(raw, &env); err != nil {
+		return raw
+	}
+	data, _ := env["data"].(map[string]any)
+	if data == nil {
+		return raw
+	}
+	if _, ok := data["search"]; ok {
+		return raw
+	}
+	repo, _ := data["repository"].(map[string]any)
+	if repo == nil {
+		return raw
+	}
+	pulls, _ := repo["pullRequests"].(map[string]any)
+	if pulls == nil {
+		return raw
+	}
+	delete(repo, "pullRequests")
+	data["search"] = map[string]any{
+		"nodes": pulls["nodes"],
+	}
+	normalized, err := json.Marshal(env)
+	if err != nil {
+		t.Fatalf("normalize fixture: %v", err)
+	}
+	return normalized
 }
 
 func fakeLocator() func() (repository.Repository, error) {
@@ -199,25 +233,25 @@ func TestFetchRepo_NullStatusCheckRollup(t *testing.T) {
 			"rateLimit": null,
 			"viewer": {"login": "someone"},
 			"repository": {
-				"defaultBranchRef": {"name": "main"},
-				"pullRequests": {
-					"nodes": [
-						{
-							"number": 99,
-							"title": "test pr",
-							"url": "https://github.com/x/y/pull/99",
-							"isDraft": false,
-							"headRefName": "feat",
-							"baseRefName": "main",
-							"additions": 1,
-							"deletions": 0,
-							"changedFiles": 1,
-							"reviewDecision": null,
-							"mergeStateStatus": "CLEAN",
-							"commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]}
-						}
-					]
-				}
+				"defaultBranchRef": {"name": "main"}
+			},
+			"search": {
+				"nodes": [
+					{
+						"number": 99,
+						"title": "test pr",
+						"url": "https://github.com/x/y/pull/99",
+						"isDraft": false,
+						"headRefName": "feat",
+						"baseRefName": "main",
+						"additions": 1,
+						"deletions": 0,
+						"changedFiles": 1,
+						"reviewDecision": null,
+						"mergeStateStatus": "CLEAN",
+						"commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]}
+					}
+				]
 			}
 		}
 	}`)
@@ -251,7 +285,7 @@ func TestFetchRepo_RepoResolveError(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Query shape — regression guards for the repository.pullRequests migration
+// Query shape — regression guards for filter-aware search queries
 // ---------------------------------------------------------------------------
 
 // captureRequestBody is a roundTripper that stores the raw request body and
@@ -276,7 +310,7 @@ func (rt *captureRoundTripper) RoundTrip(r *http.Request) (*http.Response, error
 	}, nil
 }
 
-func TestFetchRepo_QueryShape_UsesRepositoryPullRequests(t *testing.T) {
+func TestFetchRepo_QueryShape_UsesSearchAndNotPullRequests(t *testing.T) {
 	rt := &captureRoundTripper{fixture: fixtureBytes(t, "graphql-empty")}
 	gql, err := api.NewGraphQLClient(api.ClientOptions{
 		Host:      "github.com",
@@ -291,21 +325,15 @@ func TestFetchRepo_QueryShape_UsesRepositoryPullRequests(t *testing.T) {
 	_, _ = c.FetchRepo(context.Background(), filter.Set{})
 
 	body := string(rt.capturedBody)
-	if !strings.Contains(body, "repository(owner:") {
-		t.Errorf("expected request body to contain repository(owner:, got:\n%s", body)
+	if !strings.Contains(body, "search(") {
+		t.Errorf("expected request body to contain search(, got:\n%s", body)
 	}
-	if !strings.Contains(body, "pullRequests(") {
-		t.Errorf("expected request body to contain pullRequests(, got:\n%s", body)
-	}
-	if strings.Contains(body, "search(") {
-		t.Errorf("expected request body to NOT contain search(, got:\n%s", body)
-	}
-	if strings.Contains(body, "author:") {
-		t.Errorf("expected request body to NOT contain author:, got:\n%s", body)
+	if strings.Contains(body, "pullRequests(") {
+		t.Errorf("expected request body to NOT contain pullRequests(, got:\n%s", body)
 	}
 }
 
-func TestFetchRepo_QueryShape_ContainsOrderBy(t *testing.T) {
+func TestFetchRepo_QueryShape_ContainsAuthorFragment(t *testing.T) {
 	rt := &captureRoundTripper{fixture: fixtureBytes(t, "graphql-empty")}
 	gql, err := api.NewGraphQLClient(api.ClientOptions{
 		Host:      "github.com",
@@ -316,15 +344,19 @@ func TestFetchRepo_QueryShape_ContainsOrderBy(t *testing.T) {
 		t.Fatalf("NewGraphQLClient: %v", err)
 	}
 
+	s := filter.NewSet(
+		[]filter.QueryFilter{filter.NewAuthorFilter([]string{"alice"})},
+		nil,
+	)
 	c := newClientWith(gql, fakeLocator())
-	_, _ = c.FetchRepo(context.Background(), filter.Set{})
+	_, _ = c.FetchRepo(context.Background(), s)
 
 	body := string(rt.capturedBody)
-	if !strings.Contains(body, "orderBy") {
-		t.Errorf("expected request body to contain orderBy, got:\n%s", body)
+	if !strings.Contains(body, "author:alice") {
+		t.Errorf("expected request body to contain author:alice, got:\n%s", body)
 	}
-	if !strings.Contains(body, "UPDATED_AT") {
-		t.Errorf("expected request body to contain UPDATED_AT, got:\n%s", body)
+	if !strings.Contains(body, "repo:acme-org/widget") {
+		t.Errorf("expected request body to contain repo qualifier, got:\n%s", body)
 	}
 }
 
@@ -338,7 +370,7 @@ func TestFetchRepo_CacheHit_ZeroCost(t *testing.T) {
 		fakeGraphQLClient(t, fixtureBytes(t, "graphql-widget-4-stack"), 200),
 		fakeLocator(),
 	)
-	swr := NewSWRClient(inner, cacheDir, 5*time.Minute)
+	swr := NewSWRClient(inner, fakeLocator(), cacheDir, 5*time.Minute)
 	swr.accountID = func() string { return "testuser" }
 
 	// First call: cold miss, cost == 1.

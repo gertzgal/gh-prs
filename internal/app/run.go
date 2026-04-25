@@ -50,9 +50,9 @@ func Run(ctx context.Context, d Deps) int {
 		return reportFetchError(err, d.Stderr)
 	}
 
-	// Apply list filters (post-fetch). Author filtering is now client-side;
-	// ResolveAndApply substitutes "@me" with the viewer login from the GraphQL
-	// response, then runs all ListFilters in order.
+	// Apply list filters (post-fetch). ResolveAndApply substitutes "@me" with
+	// the viewer login from the GraphQL response, then runs all ListFilters in
+	// order.
 	repo.PRs = d.Filters.ResolveAndApply(repo.PRs, repo.ViewerLogin)
 
 	// Derive stack topology (stackId + stackPos) once, here, so every

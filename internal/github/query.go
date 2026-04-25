@@ -4,7 +4,34 @@ import (
 	"github.com/gertzgal/gh-prs/internal/model"
 )
 
-type prRepoQuery struct {
+type prNode struct {
+	Number           int
+	Title            string
+	URL              string `graphql:"url"`
+	IsDraft          bool
+	HeadRefName      string
+	BaseRefName      string
+	Additions        int
+	Deletions        int
+	ChangedFiles     int
+	ReviewDecision   string
+	MergeStateStatus string
+	Author           struct {
+		Login    string
+		Typename string `graphql:"__typename"`
+	}
+	Commits struct {
+		Nodes []struct {
+			Commit struct {
+				StatusCheckRollup *struct {
+					State string
+				}
+			}
+		}
+	} `graphql:"commits(last: 1)"`
+}
+
+type prSearchQuery struct {
 	RateLimit struct {
 		Cost      int
 		Remaining int
@@ -17,35 +44,12 @@ type prRepoQuery struct {
 		DefaultBranchRef *struct {
 			Name string
 		}
-		PullRequests struct {
-			Nodes []struct {
-				Number           int
-				Title            string
-				URL              string `graphql:"url"`
-				IsDraft          bool
-				HeadRefName      string
-				BaseRefName      string
-				Additions        int
-				Deletions        int
-				ChangedFiles     int
-				ReviewDecision   string
-				MergeStateStatus string
-				Author           struct {
-					Login    string
-					Typename string `graphql:"__typename"`
-				}
-				Commits struct {
-					Nodes []struct {
-						Commit struct {
-							StatusCheckRollup *struct {
-								State string
-							}
-						}
-					}
-				} `graphql:"commits(last: 1)"`
-			}
-		} `graphql:"pullRequests(first: 50, states: [OPEN], orderBy: {field: UPDATED_AT, direction: DESC})"`
 	} `graphql:"repository(owner: $owner, name: $name)"`
+	Search struct {
+		Nodes []struct {
+			PullRequest prNode `graphql:"... on PullRequest"`
+		}
+	} `graphql:"search(query: $q, type: ISSUE, first: 50)"`
 }
 
 // authorLogin returns the canonical GitHub login for a PR author.
@@ -62,43 +66,15 @@ func authorLogin(login, typename string) string {
 	return login
 }
 
-func translateQueryResult(q *prRepoQuery, owner, name string) *model.Repo {
+func translateQueryResult(q *prSearchQuery, owner, name string) *model.Repo {
 	defaultBranch := "main"
-	var prNodes []struct {
-		Number           int
-		Title            string
-		URL              string `graphql:"url"`
-		IsDraft          bool
-		HeadRefName      string
-		BaseRefName      string
-		Additions        int
-		Deletions        int
-		ChangedFiles     int
-		ReviewDecision   string
-		MergeStateStatus string
-		Author           struct {
-			Login    string
-			Typename string `graphql:"__typename"`
-		}
-		Commits struct {
-			Nodes []struct {
-				Commit struct {
-					StatusCheckRollup *struct {
-						State string
-					}
-				}
-			}
-		} `graphql:"commits(last: 1)"`
-	}
-	if q.Repository != nil {
-		if q.Repository.DefaultBranchRef != nil {
-			defaultBranch = q.Repository.DefaultBranchRef.Name
-		}
-		prNodes = q.Repository.PullRequests.Nodes
+	if q.Repository != nil && q.Repository.DefaultBranchRef != nil {
+		defaultBranch = q.Repository.DefaultBranchRef.Name
 	}
 
-	prs := make([]model.PR, 0, len(prNodes))
-	for _, node := range prNodes {
+	prs := make([]model.PR, 0, len(q.Search.Nodes))
+	for _, n := range q.Search.Nodes {
+		node := n.PullRequest
 		var ci model.CiState
 		if len(node.Commits.Nodes) > 0 && node.Commits.Nodes[0].Commit.StatusCheckRollup != nil {
 			ci = model.CiState(node.Commits.Nodes[0].Commit.StatusCheckRollup.State)
