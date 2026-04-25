@@ -4,6 +4,33 @@ import (
 	"github.com/gertzgal/gh-prs/internal/model"
 )
 
+type prNode struct {
+	Number           int
+	Title            string
+	URL              string `graphql:"url"`
+	IsDraft          bool
+	HeadRefName      string
+	BaseRefName      string
+	Additions        int
+	Deletions        int
+	ChangedFiles     int
+	ReviewDecision   string
+	MergeStateStatus string
+	Author           struct {
+		Login    string
+		Typename string `graphql:"__typename"`
+	}
+	Commits struct {
+		Nodes []struct {
+			Commit struct {
+				StatusCheckRollup *struct {
+					State string
+				}
+			}
+		}
+	} `graphql:"commits(last: 1)"`
+}
+
 type prSearchQuery struct {
 	RateLimit struct {
 		Cost      int
@@ -20,32 +47,7 @@ type prSearchQuery struct {
 	} `graphql:"repository(owner: $owner, name: $name)"`
 	Search struct {
 		Nodes []struct {
-			PullRequest struct {
-				Number           int
-				Title            string
-				URL              string `graphql:"url"`
-				IsDraft          bool
-				HeadRefName      string
-				BaseRefName      string
-				Additions        int
-				Deletions        int
-				ChangedFiles     int
-				ReviewDecision   string
-				MergeStateStatus string
-				Author           struct {
-					Login    string
-					Typename string `graphql:"__typename"`
-				}
-				Commits struct {
-					Nodes []struct {
-						Commit struct {
-							StatusCheckRollup *struct {
-								State string
-							}
-						}
-					}
-				} `graphql:"commits(last: 1)"`
-			} `graphql:"... on PullRequest"`
+			PullRequest prNode `graphql:"... on PullRequest"`
 		}
 	} `graphql:"search(query: $q, type: ISSUE, first: 50)"`
 }

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"time"
 
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/cli/go-gh/v2/pkg/repository"
@@ -18,20 +17,13 @@ type Client interface {
 	FetchRepo(ctx context.Context, filters filter.Set) (*model.Repo, error)
 }
 
-// Options configures the GitHub client. Zero-value is safe: no debug, no cache.
+// Options configures the GitHub client. Zero-value is safe: no debug.
 type Options struct {
 	// Debug enables httpretty-style logging of the GraphQL request/response
 	// (URL, headers, body, timing) to DebugOut. Honors DebugColor for ANSI.
 	Debug      bool
 	DebugOut   io.Writer
 	DebugColor bool
-
-	// EnableCache turns on go-gh's disk cache for the GraphQL POST. When on,
-	// identical queries within CacheTTL are served from CacheDir without a
-	// network round trip. CacheDir empty => go-gh default.
-	EnableCache bool
-	CacheTTL    time.Duration
-	CacheDir    string
 }
 
 type githubClient struct {
@@ -58,15 +50,6 @@ func buildClientOptions(opts Options) api.ClientOptions {
 		co.Log = opts.DebugOut
 		co.LogVerboseHTTP = true
 		co.LogColorize = opts.DebugColor
-	}
-	if opts.EnableCache {
-		co.EnableCache = true
-		if opts.CacheTTL > 0 {
-			co.CacheTTL = opts.CacheTTL
-		}
-		if opts.CacheDir != "" {
-			co.CacheDir = opts.CacheDir
-		}
 	}
 	return co
 }

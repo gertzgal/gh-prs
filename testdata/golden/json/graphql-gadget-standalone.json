@@ -44,5 +44,8 @@
     "remaining": 4998,
     "resetAt": "2026-04-17T17:21:19Z"
   },
-  "latencyMs": 0
+  "latencyMs": 0,
+  "cacheAgeMs": 0,
+  "fromCache": false,
+  "isStale": false
 }

@@ -77,7 +77,7 @@ func TestJSONFormatter_KeyShape(t *testing.T) {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	want := []string{"defaultBranch", "latencyMs", "name", "owner", "prs", "rateLimit", "viewerLogin"}
+	want := []string{"cacheAgeMs", "defaultBranch", "fromCache", "isStale", "latencyMs", "name", "owner", "prs", "rateLimit", "viewerLogin"}
 	if len(keys) != len(want) {
 		t.Fatalf("keys = %v, want %v", keys, want)
 	}

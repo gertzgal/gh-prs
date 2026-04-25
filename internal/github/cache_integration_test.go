@@ -14,11 +14,9 @@ import (
 	"github.com/gertzgal/gh-prs/internal/filter"
 )
 
-// TestCacheWiring_SecondCallHitsDisk verifies the user-facing perf win: when
-// cache is enabled and the request fingerprint matches, the second
-// FetchRepo() does not call the transport. If this test regresses, caching
-// is broken and the speed improvement is gone.
-func TestCacheWiring_SecondCallHitsDisk(t *testing.T) {
+// TestSWRIntegration_WarmHit_SecondCallReadsDisk verifies that when cache is
+// enabled, the second FetchRepo() serves from disk without a network round-trip.
+func TestSWRIntegration_WarmHit_SecondCallReadsDisk(t *testing.T) {
 	fixture := fixtureBytes(t, "graphql-widget-4-stack")
 
 	var hits int64
@@ -35,12 +33,8 @@ func TestCacheWiring_SecondCallHitsDisk(t *testing.T) {
 
 	cacheDir := filepath.Join(t.TempDir(), "cache")
 
-	newClient := func() Client {
-		co := buildClientOptions(Options{
-			EnableCache: true,
-			CacheTTL:    30 * time.Second,
-			CacheDir:    cacheDir,
-		})
+	newInnerClient := func() Client {
+		co := buildClientOptions(Options{})
 		co.Host = "github.com"
 		co.AuthToken = "test-token"
 		co.Transport = rt
@@ -51,25 +45,41 @@ func TestCacheWiring_SecondCallHitsDisk(t *testing.T) {
 		return newClientWith(gql, fakeLocator())
 	}
 
-	c1 := newClient()
-	if _, err := c1.FetchRepo(context.Background(), filter.Set{}); err != nil {
+	inner := newInnerClient()
+	swr := NewSWRClient(inner, fakeLocator(), cacheDir, 30*time.Second)
+	swr.accountID = func() string { return "testuser" }
+
+	// First call: cold miss, hits network.
+	repo1, err := swr.FetchRepo(context.Background(), filter.Set{})
+	if err != nil {
 		t.Fatalf("first FetchRepo: %v", err)
 	}
 	if got := atomic.LoadInt64(&hits); got != 1 {
 		t.Fatalf("first call: want 1 transport hit, got %d", got)
 	}
+	if repo1.RateLimit == nil || repo1.RateLimit.Cost != 1 {
+		t.Fatalf("first call: want cost 1, got %+v", repo1.RateLimit)
+	}
 
-	// Fresh client (separate process simulation), same cache dir.
-	c2 := newClient()
-	if _, err := c2.FetchRepo(context.Background(), filter.Set{}); err != nil {
+	// Second call: warm hit, no network.
+	inner2 := newInnerClient()
+	swr2 := NewSWRClient(inner2, fakeLocator(), cacheDir, 30*time.Second)
+	swr2.accountID = func() string { return "testuser" }
+	repo2, err := swr2.FetchRepo(context.Background(), filter.Set{})
+	if err != nil {
 		t.Fatalf("second FetchRepo: %v", err)
 	}
 	if got := atomic.LoadInt64(&hits); got != 1 {
 		t.Errorf("second call: want still 1 transport hit (cache hit), got %d", got)
 	}
+	if repo2.RateLimit == nil || repo2.RateLimit.Cost != 0 {
+		t.Errorf("second call: want cost 0 (cache hit), got %+v", repo2.RateLimit)
+	}
 }
 
-func TestCacheWiring_DisabledAlwaysHitsNetwork(t *testing.T) {
+// TestSWRIntegration_DisabledAlwaysHitsNetwork verifies that when cache is
+// disabled, every FetchRepo() hits the network.
+func TestSWRIntegration_DisabledAlwaysHitsNetwork(t *testing.T) {
 	fixture := fixtureBytes(t, "graphql-widget-4-stack")
 
 	var hits int64
@@ -84,7 +94,7 @@ func TestCacheWiring_DisabledAlwaysHitsNetwork(t *testing.T) {
 	})
 
 	newClient := func() Client {
-		co := buildClientOptions(Options{}) // cache off
+		co := buildClientOptions(Options{})
 		co.Host = "github.com"
 		co.AuthToken = "test-token"
 		co.Transport = rt

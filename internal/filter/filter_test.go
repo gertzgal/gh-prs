@@ -302,3 +302,134 @@ func TestSet_Label_MultipleFilters_JoinedWithDot(t *testing.T) {
 		t.Fatalf("Set.Label (two filters): got %q, want %q", got, want)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// AuthorFilter.Apply
+// ---------------------------------------------------------------------------
+
+func TestAuthorFilter_Apply_SingleLogin(t *testing.T) {
+	f := filter.NewAuthorFilter([]string{"alice"})
+	prs := []model.PR{
+		{Number: 1, Author: "alice"},
+		{Number: 2, Author: "bob"},
+	}
+	got := f.Apply(prs)
+	if len(got) != 1 || got[0].Number != 1 {
+		t.Fatalf("want PR #1, got %v", got)
+	}
+}
+
+func TestAuthorFilter_Apply_MultipleLogins_ORed(t *testing.T) {
+	f := filter.NewAuthorFilter([]string{"alice", "bob"})
+	prs := []model.PR{
+		{Number: 1, Author: "alice"},
+		{Number: 2, Author: "bob"},
+		{Number: 3, Author: "carol"},
+	}
+	got := f.Apply(prs)
+	if len(got) != 2 {
+		t.Fatalf("want 2 PRs, got %d", len(got))
+	}
+}
+
+func TestAuthorFilter_Apply_CaseInsensitive(t *testing.T) {
+	f := filter.NewAuthorFilter([]string{"alice"})
+	prs := []model.PR{
+		{Number: 1, Author: "Alice"},
+	}
+	got := f.Apply(prs)
+	if len(got) != 1 {
+		t.Fatalf("want 1 PR, got %d", len(got))
+	}
+}
+
+func TestAuthorFilter_Apply_NoMatch_ReturnsEmpty(t *testing.T) {
+	f := filter.NewAuthorFilter([]string{"alice"})
+	prs := []model.PR{
+		{Number: 1, Author: "bob"},
+	}
+	got := f.Apply(prs)
+	if len(got) != 0 {
+		t.Fatalf("want 0 PRs, got %d", len(got))
+	}
+}
+
+func TestAuthorFilter_Apply_ZeroLogins_Passthrough(t *testing.T) {
+	f := filter.NewAuthorFilter(nil)
+	prs := []model.PR{{Number: 1, Author: "alice"}}
+	got := f.Apply(prs)
+	if len(got) != 1 {
+		t.Fatalf("want 1 PR, got %d", len(got))
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Set.ResolveAndApply
+// ---------------------------------------------------------------------------
+
+func TestSet_ResolveAndApply_MeResolvedToViewer(t *testing.T) {
+	af := filter.NewAuthorFilter([]string{"@me"})
+	s := filter.NewSet(
+		[]filter.QueryFilter{af},
+		[]filter.ListFilter{af},
+	)
+	prs := []model.PR{
+		{Number: 1, Author: "alice"},
+		{Number: 2, Author: "bob"},
+	}
+	got := s.ResolveAndApply(prs, "alice")
+	if len(got) != 1 || got[0].Number != 1 {
+		t.Fatalf("want PR #1, got %v", got)
+	}
+}
+
+func TestSet_ResolveAndApply_ExplicitLoginUnchanged(t *testing.T) {
+	af := filter.NewAuthorFilter([]string{"alice"})
+	s := filter.NewSet(
+		[]filter.QueryFilter{af},
+		[]filter.ListFilter{af},
+	)
+	prs := []model.PR{
+		{Number: 1, Author: "alice"},
+		{Number: 2, Author: "bob"},
+	}
+	got := s.ResolveAndApply(prs, "viewer")
+	if len(got) != 1 || got[0].Number != 1 {
+		t.Fatalf("want PR #1, got %v", got)
+	}
+}
+
+func TestSet_ResolveAndApply_MixedMeAndExplicit(t *testing.T) {
+	af := filter.NewAuthorFilter([]string{"@me", "bob"})
+	s := filter.NewSet(
+		[]filter.QueryFilter{af},
+		[]filter.ListFilter{af},
+	)
+	prs := []model.PR{
+		{Number: 1, Author: "alice"},
+		{Number: 2, Author: "bob"},
+		{Number: 3, Author: "carol"},
+	}
+	got := s.ResolveAndApply(prs, "alice")
+	if len(got) != 2 {
+		t.Fatalf("want 2 PRs, got %d", len(got))
+	}
+}
+
+func TestSet_ResolveAndApply_ChainsWithOtherListFilters(t *testing.T) {
+	// Author filter resolves @me, then a second list filter drops PR #1.
+	af := filter.NewAuthorFilter([]string{"@me"})
+	lf := stubListFilter{allow: []int{2}}
+	s := filter.NewSet(
+		[]filter.QueryFilter{af},
+		[]filter.ListFilter{af, lf},
+	)
+	prs := []model.PR{
+		{Number: 1, Author: "alice"},
+		{Number: 2, Author: "alice"},
+	}
+	got := s.ResolveAndApply(prs, "alice")
+	if len(got) != 1 || got[0].Number != 2 {
+		t.Fatalf("want PR #2, got %v", got)
+	}
+}

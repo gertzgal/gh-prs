@@ -33,15 +33,15 @@ const USAGE = `Usage: gh prs [--author <login>] [--format <text|json|toon>] [--d
                    Also honored via DEBUG=1 env var.
   --no-cache       Skip the disk cache for this invocation.
                    Also honored via GH_PRS_NO_CACHE=1.
-  --cache-ttl <d>  Cache TTL (Go duration: "60s", "2m", "10m"). Default 60s.
+  --cache-ttl <d>  Cache TTL (Go duration: "60s", "2m", "10m"). Default 5m.
                    Also honored via GH_PRS_CACHE_TTL.
   --stats          Show the footer with request latency, GraphQL query cost,
                    and rate-limit remaining. Hidden by default.
                    Also honored via GH_PRS_STATS=1.
   --help           Show this help.
 
-Cache lives in $XDG_CACHE_HOME/gh-prs/ (or platform equivalent) and is keyed by
-the full GraphQL request body, so a different repo or viewer will never collide.
+Cache lives in $XDG_CACHE_HOME/gh-prs/ (or platform equivalent). Data is served
+stale for up to 2x the TTL while a background refresh runs.
 
 Exit codes: 0 success · 1 gh/network failure · 2 not in a GitHub repo · 3 no authored open PRs.
 `
@@ -75,7 +75,7 @@ func Execute(argv []string, env []string) int {
 	cmd.Flags().StringVarP(&cobraFormat, "format", "f", "", "Output format: text|json|toon (default text; also via GH_PRS_FORMAT)")
 	cmd.Flags().BoolVar(&cobraDebug, "debug", false, "Log actual GraphQL request/response to stderr (also via DEBUG=1)")
 	cmd.Flags().BoolVar(&cobraNoCache, "no-cache", false, "Skip the disk cache (also via GH_PRS_NO_CACHE=1)")
-	cmd.Flags().StringVar(&cobraCacheTTL, "cache-ttl", "", "Cache TTL (e.g. 60s, 2m). Default 60s.")
+	cmd.Flags().StringVar(&cobraCacheTTL, "cache-ttl", "", "Cache TTL (e.g. 60s, 2m). Default 5m.")
 	cmd.Flags().BoolVar(&cobraStats, "stats", false, "Show latency + GraphQL cost + rate-limit footer (also via GH_PRS_STATS=1)")
 	cmd.SetOut(os.Stdout)
 	cmd.SetErr(os.Stderr)
@@ -106,6 +106,13 @@ func runOnce(flags Flags, env map[string]string, stdout, stderr io.Writer) int {
 		return MapError(err, false)
 	}
 
+	var swr *github.SWRClient
+	if !flags.NoCache {
+		ttl, _ := github.ParseCacheTTL(flags.CacheTTL)
+		swr = github.NewSWRClient(client, repository.Current, github.DefaultCacheDir(), ttl)
+		client = swr
+	}
+
 	machine := flags.Machine()
 	spinner := NewSpinner(!machine, stderrIsTTY, stderr)
 	spinner.Start()
@@ -121,12 +128,13 @@ func runOnce(flags Flags, env map[string]string, stdout, stderr io.Writer) int {
 	if len(authors) == 0 {
 		authors = []string{"@me"}
 	}
+	af := filter.NewAuthorFilter(authors)
 	filters := filter.NewSet(
-		[]filter.QueryFilter{filter.NewAuthorFilter(authors)},
-		nil,
+		[]filter.QueryFilter{af},
+		[]filter.ListFilter{af},
 	)
 
-	return app.Run(context.Background(), app.Deps{
+	exitCode := app.Run(context.Background(), app.Deps{
 		Flags:     app.Flags{Machine: machine},
 		Filters:   filters,
 		Client:    client,
@@ -143,6 +151,11 @@ func runOnce(flags Flags, env map[string]string, stdout, stderr io.Writer) int {
 		Stderr: stderr,
 		Now:    time.Now,
 	})
+
+	if swr != nil {
+		swr.LingerWait()
+	}
+	return exitCode
 }
 
 // buildClientOptions converts CLI flags + env into github.Options. Debug logs
@@ -153,12 +166,6 @@ func buildClientOptions(flags Flags, env map[string]string, stderr io.Writer, st
 		opts.Debug = true
 		opts.DebugOut = stderr
 		opts.DebugColor = ShouldColor(env, stderrIsTTY)
-	}
-	if !flags.NoCache {
-		ttl, _ := github.ParseCacheTTL(flags.CacheTTL)
-		opts.EnableCache = true
-		opts.CacheTTL = ttl
-		opts.CacheDir = github.DefaultCacheDir()
 	}
 	return opts
 }

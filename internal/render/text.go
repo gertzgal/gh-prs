@@ -3,6 +3,7 @@ package render
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gertzgal/gh-prs/internal/model"
 	"github.com/gertzgal/gh-prs/internal/stacks"
@@ -11,6 +12,14 @@ import (
 // lowerKey normalises a login for case-insensitive section matching.
 // GitHub logins are case-preserving but comparison is case-insensitive.
 func lowerKey(s string) string { return strings.ToLower(s) }
+
+// formatShortDuration renders a duration as "2m", "30s", etc.
+func formatShortDuration(d time.Duration) string {
+	if d >= time.Minute {
+		return fmt.Sprintf("%dm", int(d.Minutes()))
+	}
+	return fmt.Sprintf("%ds", int(d.Seconds()))
+}
 
 type rowLayout struct {
 	titlePrefix  string
@@ -116,18 +125,15 @@ type authorSection struct {
 }
 
 // groupByAuthor partitions stacks and standalone PRs by author, preserving
-// the order of authorOrder. "@me" is resolved to viewerLogin. Stacks are
-// attributed to the root PR's author. Matching is case-insensitive to handle
-// the common case where the user types a lowercase login but GitHub preserves
-// the original case (e.g. "chenalon" matches PR author "ChenAlon").
-func groupByAuthor(g stacks.Grouped, authorOrder []string, viewerLogin string) []authorSection {
+// the order of authorOrder. Logins are already resolved ("@me" substituted
+// upstream in app.Run). Matching is case-insensitive to handle the common
+// case where the user types a lowercase login but GitHub preserves the
+// original case (e.g. "gertzgal" matches PR author "GertzGal").
+func groupByAuthor(g stacks.Grouped, authorOrder []string) []authorSection {
 	sections := make([]authorSection, len(authorOrder))
 	// idx maps the lowercase login to the section index.
 	idx := make(map[string]int, len(authorOrder))
 	for i, login := range authorOrder {
-		if login == "@me" {
-			login = viewerLogin
-		}
 		sections[i] = authorSection{Login: login}
 		idx[lowerKey(login)] = i
 	}
@@ -190,7 +196,7 @@ func (Text) Format(repo *model.Repo, ctx Context) (string, error) {
 	if len(ctx.AuthorOrder) > 1 {
 		// Multi-author mode: one @login · N PRs header per author, then that
 		// author's stacks and standalone sub-sections.
-		sections := groupByAuthor(g, ctx.AuthorOrder, repo.ViewerLogin)
+		sections := groupByAuthor(g, ctx.AuthorOrder)
 		for _, sec := range sections {
 			stackedCount := 0
 			for _, node := range sec.Stacks {
@@ -213,6 +219,14 @@ func (Text) Format(repo *model.Repo, ctx Context) (string, error) {
 		if repo.RateLimit != nil {
 			footer = append(footer, fmt.Sprintf("● %dpt", repo.RateLimit.Cost))
 			footer = append(footer, fmt.Sprintf("%d remaining", repo.RateLimit.Remaining))
+		}
+		if repo.CacheAge > 0 {
+			age := formatShortDuration(repo.CacheAge)
+			if repo.IsStale {
+				footer = append(footer, fmt.Sprintf("stale %s ago", age))
+			} else {
+				footer = append(footer, fmt.Sprintf("cached %s ago", age))
+			}
 		}
 		out = append(out, "  "+fgGray(strings.Join(footer, " · "), opts.color))
 	}

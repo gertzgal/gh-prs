@@ -29,15 +29,17 @@ type stubFormatter struct {
 	label       string
 	panicOnCall bool
 	err         error
+	lastRepo    *model.Repo
 	lastCtx     render.Context
 	calls       int
 }
 
-func (f *stubFormatter) Format(_ *model.Repo, ctx render.Context) (string, error) {
+func (f *stubFormatter) Format(repo *model.Repo, ctx render.Context) (string, error) {
 	if f.panicOnCall {
 		panic(fmt.Sprintf("%s formatter should not have been invoked", f.label))
 	}
 	f.calls++
+	f.lastRepo = repo
 	f.lastCtx = ctx
 	if f.err != nil {
 		return "", f.err
@@ -324,5 +326,38 @@ func TestRun_ListFilterApplied_PassthroughWhenAllowed(t *testing.T) {
 	}
 	if text.calls != 1 {
 		t.Fatalf("formatter calls = %d, want 1", text.calls)
+	}
+}
+
+func TestRun_MeResolvedToViewerLogin(t *testing.T) {
+	// ViewerLogin is "alice"; @me in AuthorOrder should resolve to alice's section.
+	af := filter.NewAuthorFilter([]string{"@me"})
+	filters := filter.NewSet(
+		[]filter.QueryFilter{af},
+		[]filter.ListFilter{af},
+	)
+	r := baseRepo()
+	r.PRs = []model.PR{
+		{Number: 1, Author: "alice", HeadRefName: "alice/feat", BaseRefName: "main"},
+		{Number: 2, Author: "bob", HeadRefName: "bob/feat", BaseRefName: "main"},
+	}
+	text := &stubFormatter{label: "TEXT"}
+	d, _, _, _ := newHarness(func(d *Deps) {
+		d.Filters = filters
+		d.Client = &stubClient{repo: r}
+		d.Formatter = text
+		d.FormatCtx.AuthorOrder = []string{"@me"}
+	})
+	code := Run(context.Background(), d)
+	if code != exitSuccess {
+		t.Fatalf("exit = %d, want %d", code, exitSuccess)
+	}
+	// After ResolveAndApply, only alice's PR remains.
+	if len(text.lastRepo.PRs) != 1 || text.lastRepo.PRs[0].Number != 1 {
+		t.Fatalf("want PR #1, got %v", text.lastRepo.PRs)
+	}
+	// AuthorOrder should be resolved to viewer login.
+	if len(text.lastCtx.AuthorOrder) != 1 || text.lastCtx.AuthorOrder[0] != "alice" {
+		t.Fatalf("want AuthorOrder [alice], got %v", text.lastCtx.AuthorOrder)
 	}
 }

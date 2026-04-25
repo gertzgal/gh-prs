@@ -50,19 +50,30 @@ func Run(ctx context.Context, d Deps) int {
 		return reportFetchError(err, d.Stderr)
 	}
 
-	// Apply list filters (post-fetch). Query filters already narrowed the
-	// results server-side; list filters handle logic that cannot be expressed
-	// as GitHub search qualifiers (e.g. stack-position predicates).
-	repo.PRs = d.Filters.Apply(repo.PRs)
+	// Apply list filters (post-fetch). ResolveAndApply substitutes "@me" with
+	// the viewer login from the GraphQL response, then runs all ListFilters in
+	// order.
+	repo.PRs = d.Filters.ResolveAndApply(repo.PRs, repo.ViewerLogin)
 
 	// Derive stack topology (stackId + stackPos) once, here, so every
 	// formatter receives consistently annotated input. Keeps presentation
 	// code free of the stacks package.
 	repo.PRs = stacks.Annotate(repo.PRs, repo.DefaultBranch)
 
+	// Resolve "@me" in AuthorOrder for render grouping.
+	authorOrder := make([]string, len(d.FormatCtx.AuthorOrder))
+	for i, login := range d.FormatCtx.AuthorOrder {
+		if login == "@me" {
+			authorOrder[i] = repo.ViewerLogin
+		} else {
+			authorOrder[i] = login
+		}
+	}
+
 	latencyMs := int(d.Now().Sub(start).Round(time.Millisecond) / time.Millisecond)
 	ctx2 := d.FormatCtx
 	ctx2.LatencyMs = latencyMs
+	ctx2.AuthorOrder = authorOrder
 
 	if !d.Flags.Machine && len(repo.PRs) == 0 {
 		_, _ = fmt.Fprintf(d.Stdout, "\nNo open PRs matching the applied filters in %s/%s.\n\n", repo.Owner, repo.Name)

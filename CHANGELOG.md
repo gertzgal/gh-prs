@@ -16,14 +16,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   formats. Inline columns make stack membership self-describing so agents
   don't have to re-derive topology from `baseRefName`/`headRefName`.
   Standalone PRs have `null` for both. Populated by `stacks.Annotate`.
-- Disk cache for GraphQL responses (on by default, 60s TTL). Repeat invocations
-  within the TTL skip the network round-trip entirely. Cache lives in the
-  platform cache dir under `gh-prs/` and is keyed by the full request body.
+- SWR (stale-while-revalidate) disk cache for GraphQL responses. Serves stale
+  data instantly while refreshing in the background. Default TTL increased to
+  300s (was 60s). Process lingers up to 3s to allow background refresh to
+  complete. Cache is account-scoped to prevent cross-viewer contamination.
 - `--no-cache` flag (also `GH_PRS_NO_CACHE=1`) to bypass the cache.
 - `--cache-ttl <duration>` flag (also `GH_PRS_CACHE_TTL`) to override the TTL.
+- `cacheAgeMs`, `fromCache`, and `isStale` fields in JSON and TOON output.
+- Text footer now shows `● 0pt` on cache hit and displays cache age
+  (`cached Xm ago`) or staleness (`stale Xm ago`).
 
 ### Changed
 - **Breaking:** `--json` removed — use `--format json` instead.
+- GraphQL fetch semantics remain filter-aware: author filters still shape the
+  upstream search query, while `@me` is additionally resolved post-fetch using
+  the viewer login from the GraphQL response for list filtering and rendering.
+- SWR cache entries are now scoped by account, repo, and effective query
+  filters so different author views cannot collide on disk.
 - `--debug` now logs the actual GraphQL request/response — URL, headers, query
   body, variables, response body, timing — via go-gh's httpretty logger. The
   previous static "REST equivalent" block is still printed above it for
