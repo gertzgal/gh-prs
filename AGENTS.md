@@ -1,89 +1,62 @@
 # AGENTS.md
 
-Behavioral rules for coding agents working in this repository.
+Agent-only operating guidance for this repository.
 
-These instructions are meant to reduce common agent failure modes:
-- making silent assumptions
-- overengineering simple work
-- editing unrelated code
-- declaring success without verification
+## Repository Purpose
 
-Tradeoff: these rules favor correctness and restraint over raw speed. For trivial tasks, use judgment.
+- This repo ships `gh prs`, a GitHub CLI extension that shows open PRs for the current repo.
+- The product contract is: fetch the matching PR set, derive stack topology once, then render the same data in `text`, `json`, or `toon`.
+- Preserve output correctness over implementation cleverness.
 
-## 1. Think Before Coding
+## Canonical Commands
 
-Do not guess when the request is ambiguous.
+- Build: `make build`
+- Test: `make test`
+- Full gate: `make check`
+- Install locally as the extension: `make install`
+- Run locally: `make run ARGS="--help"`
+- Demo repo smoke test: from `../gh-prs-demo-repo`, run `gh prs`
 
-Before making changes:
-- State key assumptions explicitly.
-- If there is more than one reasonable interpretation, present the options instead of silently choosing one.
-- If a simpler or lower-risk approach exists, say so.
-- If something important is unclear, stop and ask.
+## Working Rules
 
-## 2. Simplicity First
+- Prefer the smallest change that fully solves the requested problem.
+- Touch only the packages required for the task.
+- Do not silently change fetch semantics, cache semantics, or output shape.
+- If behavior changes for users, update tests and any affected docs or changelog entries in the same change.
+- If you change command behavior, check `README.md`, `CHANGELOG.md`, and help text in `internal/cli/root.go`.
 
-Prefer the smallest change that fully solves the requested problem.
+## Verification Rules
 
-Rules:
-- Do not add features the user did not ask for.
-- Do not introduce abstractions for one-off code.
-- Do not add configurability unless it is required.
-- Do not add defensive handling for unrealistic cases just to look thorough.
-- If the solution feels bloated, simplify it.
+- For code changes, run focused tests first if useful, then `make test`.
+- Run `make check` before finishing any non-trivial code change.
+- For output changes, verify the installed extension from `../gh-prs-demo-repo`.
+- If you could not run a required check, say so explicitly.
 
-Check:
-- Would a senior engineer call this overbuilt?
-- Can the same result be achieved with fewer moving parts?
+## Package Boundaries
 
-## 3. Surgical Changes
+- `internal/cli`: flag parsing, env handling, help text, extension-facing UX.
+- `internal/app`: orchestration only; fetch, apply list filters, annotate stacks, format, map exit codes.
+- `internal/github`: GraphQL query construction, response translation, cache and SWR behavior.
+- `internal/filter`: query filters and post-fetch list filters.
+- `internal/stacks`: derive stack topology from `baseRefName` and `headRefName`.
+- `internal/render`: presentation only. No fetching, no CLI parsing, no stack derivation policy.
+- `internal/model`: shared data types and errors.
 
-Touch only the code required for the task.
+## Invariants
 
-When editing existing code:
-- Do not refactor unrelated areas.
-- Do not rewrite adjacent comments, formatting, or structure without a clear need.
-- Match the local style and patterns.
-- If you notice unrelated issues, mention them separately instead of fixing them opportunistically.
+- `github.Client.FetchRepo(ctx, filters)` must honor fetch-time query filters.
+- Cache entries must not collapse distinct effective query views.
+- Stack annotations are derived centrally in `app.Run`, not inside renderers.
+- Shared fields should stay consistent across `text`, `json`, and `toon`.
+- `text` is the human contract; `json` and `toon` are machine contracts and should remain predictable.
 
-Cleanup rule:
-- Remove things made unused by your own change.
-- Leave pre-existing dead code or questionable structure alone unless the task asks for it.
+## Common Change Patterns
 
-Standard:
-- Every changed line should be traceable to the request.
+- New CLI flag: update `internal/cli`, help text, tests, and docs if user-visible.
+- New fetched field: update `internal/github/query.go`, `internal/model`, renderers, fixtures, and tests together.
+- New filter: extend `internal/filter`, wire it in `internal/cli`, and keep fetch-time vs list-time behavior explicit.
+- Render change: update renderer tests and any golden fixtures affected by output shape.
 
-## 4. Goal-Driven Execution
+## Architecture Reference
 
-Turn requests into verifiable outcomes.
-
-Examples:
-- "fix bug" -> reproduce it, change code, verify the failure is gone
-- "add validation" -> add or update checks, then verify invalid inputs are rejected
-- "refactor" -> preserve behavior and verify before/after results
-
-For non-trivial tasks, write a short execution plan:
-1. [step]
-   verify: [specific check]
-2. [step]
-   verify: [specific check]
-3. [step]
-   verify: [specific check]
-
-Do not stop at implementation. Verify the result.
-
-## 5. Communication
-
-When working on a task:
-- Be explicit about assumptions, risks, and tradeoffs.
-- Keep updates short and concrete.
-- If blocked, say exactly what is blocking progress.
-- If tests or verification could not be run, say that clearly.
-
-## 6. Project-Specific Rules
-
-Add repository-specific constraints here. For example:
-- use existing framework conventions
-- prefer modifying existing modules over creating new ones
-- add tests for user-facing behavior changes
-- avoid changing public APIs without explicit approval
-- follow existing lint/format/test commands
+- Read `docs/architecture.md` before making non-trivial changes.
