@@ -35,17 +35,13 @@ func renderSummaryFooter(repo *model.Repo, s styles) string {
 	standalonePRs := len(repo.PRs) - stackedPRs
 	totalPRs := len(repo.PRs)
 
-	var passed, pending, failed int
+	// CI breakdown — bucket via the shared tone mapping so a new CiState
+	// added to the model can't silently undercount here without also
+	// changing glyphs.go in lockstep.
+	tones := map[tone]int{}
 	var adds, dels int
 	for _, pr := range repo.PRs {
-		switch pr.CiState {
-		case model.CiSuccess:
-			passed++
-		case model.CiFailure, model.CiError:
-			failed++
-		case model.CiPending, model.CiExpected:
-			pending++
-		}
+		tones[ciTone(pr.CiState)]++
 		adds += pr.Additions
 		dels += pr.Deletions
 	}
@@ -55,9 +51,11 @@ func renderSummaryFooter(repo *model.Repo, s styles) string {
 		stackCount, pluralStack(stackCount),
 		standalonePRs,
 	)
-	ci := s.Green.Render("✓ "+fmt.Sprintf("%d passed", passed)) +
-		"  " + s.Yellow.Render("● "+fmt.Sprintf("%d pending", pending)) +
-		"  " + s.Red.Render("✗ "+fmt.Sprintf("%d failed", failed))
+	ci := strings.Join([]string{
+		s.Green.Render(fmt.Sprintf("✓ %d passed", tones[toneOk])),
+		s.Yellow.Render(fmt.Sprintf("● %d pending", tones[tonePending])),
+		s.Red.Render(fmt.Sprintf("✗ %d failed", tones[toneBad])),
+	}, "  ")
 	totals := s.Green.Render(fmt.Sprintf("+%d", adds)) + " " + s.Red.Render(fmt.Sprintf("-%d", dels))
 
 	return "  " + strings.Join([]string{counts, ci, totals}, "   ")
