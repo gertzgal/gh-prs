@@ -25,6 +25,10 @@ type Flags struct {
 	// injects "@me" here — that policy lives in runOnce where filter.Set
 	// is constructed.
 	Authors []string
+	// Teams holds the --team slugs (repeatable flag). Slugs are case-
+	// insensitive; lowercasing happens at resolution time. composeFlags
+	// does no resolution: that is a network operation owned by runOnce.
+	Teams []string
 }
 
 // Machine reports whether the selected format is for machine consumption
@@ -40,7 +44,9 @@ func (f Flags) Machine() bool { return f.Format != render.FormatText }
 //   - GH_PRS_FORMAT=<name>       sets format if --format not passed
 //   - GH_PRS_AUTHOR=<a[,b,...]>  sets author list if --author not passed;
 //     comma-separated for env (e.g. "alice,bob"), repeatable flag for CLI.
-func composeFlags(cobraFormat string, cobraDebug, cobraNoCache bool, cobraCacheTTL string, cobraStats bool, cobraAuthors []string, env map[string]string) Flags {
+//   - GH_PRS_TEAM=<a[,b,...]>    sets team list if --team not passed;
+//     same semantics as GH_PRS_AUTHOR.
+func composeFlags(cobraFormat string, cobraDebug, cobraNoCache bool, cobraCacheTTL string, cobraStats bool, cobraAuthors, cobraTeams []string, env map[string]string) Flags {
 	debug := cobraDebug
 	if !debug {
 		if v, ok := env["DEBUG"]; ok && v != "" {
@@ -87,6 +93,17 @@ func composeFlags(cobraFormat string, cobraDebug, cobraNoCache bool, cobraCacheT
 		}
 	}
 
+	teams := cobraTeams
+	if len(teams) == 0 {
+		if v := env["GH_PRS_TEAM"]; v != "" {
+			for _, t := range strings.Split(v, ",") {
+				if s := strings.TrimSpace(t); s != "" {
+					teams = append(teams, s)
+				}
+			}
+		}
+	}
+
 	return Flags{
 		Format:   format,
 		Debug:    debug,
@@ -94,5 +111,6 @@ func composeFlags(cobraFormat string, cobraDebug, cobraNoCache bool, cobraCacheT
 		CacheTTL: ttl,
 		Stats:    stats,
 		Authors:  authors,
+		Teams:    teams,
 	}
 }
