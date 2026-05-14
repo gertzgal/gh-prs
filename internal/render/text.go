@@ -182,6 +182,9 @@ func (Text) Format(repo *model.Repo, ctx Context) (string, error) {
 	g := stacks.Group(repo.PRs, repo.DefaultBranch)
 	var out []string
 	out = append(out, "", renderHeader(repo, ctx, s), "")
+	if legend := renderLegend(ctx.Width, s); legend != "" {
+		out = append(out, legend, "")
+	}
 
 	if len(ctx.AuthorOrder) > 1 {
 		// Multi-author mode: one @login · N PRs header per author, then that

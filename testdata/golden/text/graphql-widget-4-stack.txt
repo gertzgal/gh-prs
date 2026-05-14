@@ -2,6 +2,10 @@
 › gh prs
 repo acme-org/widget · base main
 
+╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ┬─● stack   ● standalone   ✓ CI passed   ● CI pending   ✗ CI failed   ○ CI unknown   + additions   - deletions   [review] reviewer   [changes] author │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
   stack · 4 PRs
 
   ┬ #1001  ✓ ci  ● review  +515-59  [ACME-100] Add feature foundation (1/3)  1/4

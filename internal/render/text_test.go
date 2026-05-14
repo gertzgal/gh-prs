@@ -150,8 +150,12 @@ func TestText_FooterNilRateLimit(t *testing.T) {
 	if strings.Contains(out, "remaining") {
 		t.Errorf("footer should not contain remaining")
 	}
-	if strings.Contains(out, "●") {
-		t.Errorf("footer should not contain ●")
+	// The footer's rate-limit pip uses "● Npt"; check for that specific
+	// pattern rather than a bare "●" rune, since the legend (rendered at
+	// width=0) also contains "●" for the "standalone" and "CI pending"
+	// tokens.
+	if strings.Contains(out, "● ") && strings.Contains(out, "pt") {
+		t.Errorf("footer should not contain ● Npt pattern")
 	}
 }
 
@@ -169,7 +173,10 @@ func TestText_FooterHiddenByDefault(t *testing.T) {
 	prs := []model.PR{samplePR(model.PR{})}
 	out := mustFormat(t, Text{}, repoWith(prs, rl), Context{Color: false, OSC8: false, LatencyMs: 1408})
 
-	for _, needle := range []string{"1408ms", "1pt", "4655 remaining", "●"} {
+	// The "●" rune is not a footer-only marker anymore — the legend uses it
+	// for "● standalone" and "● CI pending". Drop it from this check and
+	// rely on the footer-specific needles (latency, cost, remaining).
+	for _, needle := range []string{"1408ms", "1pt", "4655 remaining"} {
 		if strings.Contains(out, needle) {
 			t.Errorf("footer leaked without ShowStats: found %q in:\n%s", needle, out)
 		}

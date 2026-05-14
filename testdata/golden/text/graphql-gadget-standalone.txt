@@ -1,6 +1,10 @@
 
 repo acme-org/widget · base main
 
+╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ┬─● stack   ● standalone   ✓ CI passed   ● CI pending   ✗ CI failed   ○ CI unknown   + additions   - deletions   [review] reviewer   [changes] author │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
   standalone · 2 PRs
 
   #2001  ✗ ci  ● review  +84-23  [ACME-200] Fix config loader error handling

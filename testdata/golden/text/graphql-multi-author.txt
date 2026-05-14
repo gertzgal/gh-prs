@@ -1,6 +1,10 @@
 
 repo acme-org/widget · base main
 
+╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ┬─● stack   ● standalone   ✓ CI passed   ● CI pending   ✗ CI failed   ○ CI unknown   + additions   - deletions   [review] reviewer   [changes] author │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
   stack · 2 PRs
 
   ┬ #3001  ✓ ci  ● review  +210-5  [FEAT-1] Add authentication layer (1/2)  1/2

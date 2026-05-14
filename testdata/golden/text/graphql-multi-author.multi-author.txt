@@ -2,6 +2,10 @@
 › gh prs --author alice --author bob
 repo acme-org/widget · base main
 
+╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ┬─● stack   ● standalone   ✓ CI passed   ● CI pending   ✗ CI failed   ○ CI unknown   + additions   - deletions   [review] reviewer   [changes] author │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
   @alice · 2 PRs
 
   stack · 2 PRs
