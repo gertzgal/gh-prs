@@ -17,4 +17,5 @@
   [90m└[0m [93m#1004[0m  [32m✓[0m [90mci[0m  [ACME-100] Remove legacy helpers (cleanup)  [90m4/4[0m  [32m+47[0m[31m-183[0m
              [90mACME-100/feature-4-cleanup[0m
 
+  4 PRs in 1 stack, 0 standalone   [32m✓ 4 passed[0m  [33m● 0 pending[0m  [31m✗ 0 failed[0m   [32m+1122[0m [31m-310[0m
   [90m0ms · ● 1pt · 4999 remaining[0m

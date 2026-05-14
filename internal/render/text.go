@@ -309,6 +309,7 @@ func (Text) Format(repo *model.Repo, ctx Context) (string, error) {
 		out = append(out, renderSections(g.Stacks, g.Standalone, s, ctx.OSC8, ctx.Width)...)
 	}
 
+	out = append(out, renderSummaryFooter(repo, s))
 	if ctx.ShowStats {
 		footer := []string{fmt.Sprintf("%dms", ctx.LatencyMs)}
 		if repo.RateLimit != nil {

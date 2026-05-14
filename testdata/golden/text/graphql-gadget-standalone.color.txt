@@ -13,4 +13,5 @@
 [2m  [93m#2002[0m  [31m✗[0m [90mci[0m  [ACME-201] WIP: refactor cache invalidation  [44m [0m[97;44mreview[0m[44m [0m  [32m+256[0m[31m-12[0m[0m
 [2m           [90mfeature/ACME-201-cache-refactor[0m[0m
 
+  2 PRs in 0 stacks, 2 standalone   [32m✓ 0 passed[0m  [33m● 0 pending[0m  [31m✗ 2 failed[0m   [32m+340[0m [31m-35[0m
   [90m0ms · ● 1pt · 4998 remaining[0m
