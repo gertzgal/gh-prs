@@ -29,7 +29,13 @@ type rowLayout struct {
 	titleBold    bool
 }
 
-func prRow(pr model.PR, layout rowLayout, s styles, osc8 bool) string {
+// minRightAlignGap is the smallest acceptable distance between the left
+// edge of the diff totals and the rightmost content to their left. Below
+// this gap the diff visually collides with the title or chip; we fall back
+// to inline placement (two-space separator) so narrow gaps stay readable.
+const minRightAlignGap = 4
+
+func prRow(pr model.PR, layout rowLayout, s styles, osc8 bool, rowWidth int) string {
 	num := osc8Link(fmt.Sprintf("#%d", pr.Number), pr.URL, osc8)
 	numColored := s.BrightYellow.Render(num)
 	ci := ciStatus(pr.CiState, s)
@@ -54,7 +60,19 @@ func prRow(pr model.PR, layout rowLayout, s styles, osc8 bool) string {
 		chip = "  " + s.renderChip(s.ChangesChip, "changes")
 	}
 
-	titleLine := layout.titlePrefix + numColored + "  " + ci + "  " + diff + "  " + title + chip + pos
+	// Right-align the diff totals to the row edge when the terminal is wide
+	// enough AND there is meaningful space between the left content and the
+	// diff. Otherwise keep the inline placement so narrow terminals still
+	// look reasonable.
+	leftPart := layout.titlePrefix + numColored + "  " + ci + "  " + title + chip + pos
+	var titleLine string
+	gap := rowWidth - lipgloss.Width(leftPart) - lipgloss.Width(diff)
+	if rowWidth >= 80 && gap >= minRightAlignGap {
+		titleLine = leftPart + strings.Repeat(" ", gap) + diff
+	} else {
+		// Fall back to the historical inline layout: ci · diff · title · chip · pos.
+		titleLine = layout.titlePrefix + numColored + "  " + ci + "  " + diff + "  " + title + chip + pos
+	}
 	branchLine := layout.branchPrefix + s.Gray.Render(pr.HeadRefName)
 	if pr.IsDraft {
 		// Dim per-line, not over the joined row: lipgloss multi-line Render
@@ -75,7 +93,7 @@ func flattenStack(node *stacks.Node) []model.PR {
 	return out
 }
 
-func renderStack(node *stacks.Node, s styles, osc8 bool) []string {
+func renderStack(node *stacks.Node, s styles, osc8 bool, width int) []string {
 	prs := flattenStack(node)
 	n := len(prs)
 	lines := make([]string, 0, n)
@@ -102,7 +120,7 @@ func renderStack(node *stacks.Node, s styles, osc8 bool) []string {
 			branchPrefix: branchPrefix,
 			position:     fmt.Sprintf("%d/%d", i+1, n),
 			titleBold:    i == 0,
-		}, s, osc8))
+		}, s, osc8, width))
 	}
 	return lines
 }
@@ -207,7 +225,7 @@ func standaloneLayout() rowLayout {
 // chain to anchor it. The defensive fallback keeps row rendering predictable
 // even if upstream grouping ever produces a degenerate single-node chain
 // (e.g. after author filters trim a multi-PR stack down to one).
-func renderSections(stackNodes []*stacks.Node, standalone []model.PR, s styles, osc8 bool) []string {
+func renderSections(stackNodes []*stacks.Node, standalone []model.PR, s styles, osc8 bool, width int) []string {
 	var realStacks []*stacks.Node
 	// Copy so we don't mutate the caller's slice header.
 	demoted := append([]model.PR(nil), standalone...)
@@ -230,7 +248,7 @@ func renderSections(stackNodes []*stacks.Node, standalone []model.PR, s styles, 
 	if stackedCount > 0 {
 		out = append(out, sectionLabel("stack", stackedCount, s), "")
 		for _, sn := range realStacks {
-			out = append(out, renderStack(sn, s, osc8)...)
+			out = append(out, renderStack(sn, s, osc8, width)...)
 			out = append(out, "")
 		}
 	}
@@ -241,7 +259,7 @@ func renderSections(stackNodes []*stacks.Node, standalone []model.PR, s styles, 
 			if i > 0 {
 				out = append(out, "")
 			}
-			out = append(out, prRow(p, sl, s, osc8))
+			out = append(out, prRow(p, sl, s, osc8, width))
 		}
 		out = append(out, "")
 	}
@@ -282,13 +300,13 @@ func (Text) Format(repo *model.Repo, ctx Context) (string, error) {
 				" " + s.Gray.Render("-") + s.Red.Render(fmt.Sprintf("%d", sec.Dels))
 			authorHeader := authorHeaderLine(left, right, ctx.Width, s)
 			out = append(out, authorHeader, "")
-			out = append(out, renderSections(sec.Stacks, sec.Standalone, s, ctx.OSC8)...)
+			out = append(out, renderSections(sec.Stacks, sec.Standalone, s, ctx.OSC8, ctx.Width)...)
 			if i < lastNonEmpty {
 				out = append(out, sectionDivider(ctx.Width, s), "")
 			}
 		}
 	} else {
-		out = append(out, renderSections(g.Stacks, g.Standalone, s, ctx.OSC8)...)
+		out = append(out, renderSections(g.Stacks, g.Standalone, s, ctx.OSC8, ctx.Width)...)
 	}
 
 	if ctx.ShowStats {

@@ -427,6 +427,41 @@ func TestText_MultiAuthor_PerAuthorTotals_AndDivider(t *testing.T) {
 	}
 }
 
+func TestText_PerRowDiff_RightAlignedWhenWide(t *testing.T) {
+	pr := samplePR(model.PR{Number: 1, Title: "X"})
+	pr.Additions, pr.Deletions = 5, 2
+	out := mustFormat(t, Text{}, repoWith([]model.PR{pr}, nil), Context{Width: 120})
+	// Right-aligned: expect padding spaces before "+5-2".
+	var row string
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains(line, "#1") {
+			row = line
+			break
+		}
+	}
+	if row == "" {
+		t.Fatalf("row not found in:\n%s", out)
+	}
+	if !strings.HasSuffix(strings.TrimRight(row, " "), "-2") {
+		t.Errorf("row should end with diff totals; got %q", row)
+	}
+	// At width=120 there should be multiple spaces between the title text and "+5".
+	if !strings.Contains(row, "   +5-2") {
+		t.Errorf("expected right-aligned diff with padding; got %q", row)
+	}
+}
+
+func TestText_PerRowDiff_InlineWhenNarrow(t *testing.T) {
+	pr := samplePR(model.PR{Number: 1, Title: "X"})
+	pr.Additions, pr.Deletions = 5, 2
+	out := mustFormat(t, Text{}, repoWith([]model.PR{pr}, nil), Context{Width: 70})
+	// At narrow widths the diff stays inline (between ci and title), not at
+	// the row edge.
+	if !strings.Contains(out, "+5-2  X") {
+		t.Errorf("expected inline diff at width=70; got:\n%s", out)
+	}
+}
+
 func TestText_Chip_PerReviewDecision(t *testing.T) {
 	cases := []struct {
 		name     string
