@@ -46,8 +46,11 @@ func prRow(pr model.PR, layout rowLayout, s styles, osc8 bool) string {
 	titleLine := layout.titlePrefix + numColored + "  " + ci + "  " + review + "  " + diff + "  " + title + pos
 	branchLine := layout.branchPrefix + s.Gray.Render(pr.HeadRefName)
 	if pr.IsDraft {
-		// Apply Dim per-line; lipgloss multi-line Render pads short lines to
-		// max width which would inject trailing spaces, changing layout.
+		// Dim per-line, not over the joined row: lipgloss multi-line Render
+		// pads short lines to max width, which would inject trailing spaces
+		// and shift layout. The trade-off is two separate dim envelopes in
+		// the output bytes — visually identical, but reflected in golden
+		// files. Preserving layout is worth more than envelope count.
 		return s.Dim.Render(titleLine) + "\n" + s.Dim.Render(branchLine)
 	}
 	return titleLine + "\n" + branchLine
