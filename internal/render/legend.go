@@ -15,9 +15,9 @@ const legendMinWidth = 80
 
 // renderLegend returns the bordered legend strip, or "" when width is
 // below legendMinWidth. width=0 is treated as "wide" (no suppression,
-// no wrap forcing). At widths in [80, 110) the body soft-wraps inside
-// the box via lipgloss .Width(...). At width >= 110 the body fits on a
-// single line.
+// no wrap forcing). Between legendMinWidth and the natural rendered
+// width of the token set (~155 cols) lipgloss .Width(...) soft-wraps
+// the body inside the box. At wider widths the body fits on one line.
 func renderLegend(width int, s styles) string {
 	if width > 0 && width < legendMinWidth {
 		return ""

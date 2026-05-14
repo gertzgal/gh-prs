@@ -33,9 +33,10 @@ type Context struct {
 	// command string. Other formatters ignore this field.
 	Command string
 	// Width is the terminal width in columns at the time of rendering.
-	// 0 means "treat as wide" (>= 110). Tests set explicit widths; the CLI
-	// populates this from golang.org/x/term on a TTY and leaves it 0
-	// otherwise. Only consulted by the text formatter.
+	// 0 means "treat as wide" — no wrap forcing, no legend suppression.
+	// Tests set explicit widths; the CLI populates this from
+	// golang.org/x/term on a TTY and leaves it 0 otherwise. Only
+	// consulted by the text formatter.
 	Width int
 }
 
