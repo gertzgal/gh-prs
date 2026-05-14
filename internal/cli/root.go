@@ -182,6 +182,7 @@ func runOnce(flags Flags, env map[string]string, stdout, stderr io.Writer) int {
 			ShowStats:   flags.Stats,
 			FilterLabel: filters.Label(),
 			AuthorOrder: authorOrder,
+			Command:     renderCommand(flags),
 		},
 		Stdout: stdout,
 		Stderr: stderr,
@@ -212,6 +213,43 @@ func tryCurrentRepo() (owner, name string, ok bool) {
 		return "", "", false
 	}
 	return r.Owner, r.Name, true
+}
+
+// renderCommand reconstructs the canonical invocation from parsed flags so
+// the text formatter can echo it back. We deliberately do NOT use os.Args:
+// callers may invoke us through aliases, scripts, or different argv-shapes,
+// and the canonical form is more useful in shared output.
+//
+// Order: filters (author/team/exclude-author) first, then orthogonal flags.
+// Keeps the line stable across invocations with the same effective query.
+// Flags left at their defaults are omitted so the bare "gh prs" stays bare.
+func renderCommand(flags Flags) string {
+	parts := []string{"gh prs"}
+	for _, a := range flags.Authors {
+		parts = append(parts, "--author", a)
+	}
+	for _, t := range flags.Teams {
+		parts = append(parts, "--team", t)
+	}
+	for _, a := range flags.ExcludeAuthors {
+		parts = append(parts, "--exclude-author", a)
+	}
+	if flags.Format != "" && flags.Format != DefaultFormat {
+		parts = append(parts, "--format", flags.Format)
+	}
+	if flags.Stats {
+		parts = append(parts, "--stats")
+	}
+	if flags.NoCache {
+		parts = append(parts, "--no-cache")
+	}
+	if flags.CacheTTL != "" {
+		parts = append(parts, "--cache-ttl", flags.CacheTTL)
+	}
+	if flags.Debug {
+		parts = append(parts, "--debug")
+	}
+	return strings.Join(parts, " ")
 }
 
 func envSliceToMap(env []string) map[string]string {
