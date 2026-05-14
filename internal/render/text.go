@@ -191,24 +191,43 @@ func standaloneLayout() rowLayout {
 
 // renderSections emits lines for stacks + standalone within a single logical
 // section (used for both single-author and per-author-group paths).
+//
+// A "stack" with a single PR is demoted into the standalone slice: single-PR
+// stacks would render as a lone ┬/└ rail glyph that adds noise without any
+// chain to anchor it. The defensive fallback keeps row rendering predictable
+// even if upstream grouping ever produces a degenerate single-node chain
+// (e.g. after author filters trim a multi-PR stack down to one).
 func renderSections(stackNodes []*stacks.Node, standalone []model.PR, s styles, osc8 bool) []string {
-	var out []string
+	var realStacks []*stacks.Node
+	// Copy so we don't mutate the caller's slice header.
+	demoted := append([]model.PR(nil), standalone...)
+	for _, node := range stackNodes {
+		flat := flattenStack(node)
+		if len(flat) <= 1 {
+			if len(flat) == 1 {
+				demoted = append(demoted, flat[0])
+			}
+			continue
+		}
+		realStacks = append(realStacks, node)
+	}
 
+	var out []string
 	stackedCount := 0
-	for _, sn := range stackNodes {
+	for _, sn := range realStacks {
 		stackedCount += len(flattenStack(sn))
 	}
 	if stackedCount > 0 {
 		out = append(out, sectionLabel("stack", stackedCount, s), "")
-		for _, sn := range stackNodes {
+		for _, sn := range realStacks {
 			out = append(out, renderStack(sn, s, osc8)...)
 			out = append(out, "")
 		}
 	}
-	if len(standalone) > 0 {
-		out = append(out, sectionLabel("standalone", len(standalone), s), "")
+	if len(demoted) > 0 {
+		out = append(out, sectionLabel("standalone", len(demoted), s), "")
 		sl := standaloneLayout()
-		for i, p := range standalone {
+		for i, p := range demoted {
 			if i > 0 {
 				out = append(out, "")
 			}

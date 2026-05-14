@@ -424,6 +424,25 @@ func TestText_MultiAuthor_PerAuthorTotals_AndDivider(t *testing.T) {
 	}
 }
 
+func TestText_StackOfOne_RendersAsStandalone(t *testing.T) {
+	prs := []model.PR{
+		samplePR(model.PR{Number: 42, HeadRefName: "feat/solo", BaseRefName: "main", Title: "Solo PR"}),
+	}
+	// Width=70 suppresses the legend (which contains the ┬ glyph), so the
+	// stack-glyph check below only sees row-level content.
+	out := mustFormat(t, Text{}, repoWith(prs, nil), Context{Width: 70})
+
+	if strings.Contains(out, "stack · 1 PR") {
+		t.Errorf("single PR must not be labeled as a stack; got:\n%s", out)
+	}
+	if !strings.Contains(out, "standalone · 1 PR") {
+		t.Errorf("single PR should fall through to standalone section; got:\n%s", out)
+	}
+	if strings.Contains(out, "┬") || strings.Contains(out, "└") {
+		t.Errorf("stack glyphs should not appear for a single PR; got:\n%s", out)
+	}
+}
+
 func TestText_MultiAuthor_EmptyAuthorSectionOmitted(t *testing.T) {
 	// carol has no PRs — her section should not appear
 	prs := []model.PR{
