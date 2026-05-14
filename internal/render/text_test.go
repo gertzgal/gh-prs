@@ -45,6 +45,9 @@ func samplePR(overrides model.PR) model.PR {
 	if overrides.Author != "" {
 		base.Author = overrides.Author
 	}
+	if overrides.ReviewDecision != "" {
+		base.ReviewDecision = overrides.ReviewDecision
+	}
 	return base
 }
 
@@ -421,6 +424,40 @@ func TestText_MultiAuthor_PerAuthorTotals_AndDivider(t *testing.T) {
 	}
 	if dividerLines != 1 {
 		t.Errorf("expected exactly one dotted divider line between alice and bob; got %d in:\n%s", dividerLines, out)
+	}
+}
+
+func TestText_Chip_PerReviewDecision(t *testing.T) {
+	cases := []struct {
+		name     string
+		decision model.ReviewDecision
+		want     string // expected literal in no-color output, or "" for none
+		forbid   string // expected absent (the other chip, when relevant)
+	}{
+		{"required shows [review]", model.ReviewRequired, "[review]", "[changes]"},
+		{"changes requested shows [changes]", model.ReviewChangesRequested, "[changes]", "[review]"},
+		{"approved shows nothing", model.ReviewApproved, "", "[review]"},
+		{"unknown shows nothing", "", "", "[review]"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			prs := []model.PR{samplePR(model.PR{Number: 1, Title: "X", ReviewDecision: c.decision})}
+			// Width=70 suppresses the legend so its "[review] reviewer"
+			// example doesn't leak into row-level chip assertions.
+			out := mustFormat(t, Text{}, repoWith(prs, nil), Context{Width: 70})
+			if c.want != "" && !strings.Contains(out, c.want) {
+				t.Errorf("%s: expected %q in output:\n%s", c.name, c.want, out)
+			}
+			if c.want == "" {
+				// Neither chip should appear.
+				if strings.Contains(out, "[review]") || strings.Contains(out, "[changes]") {
+					t.Errorf("%s: expected no chip; output:\n%s", c.name, out)
+				}
+			}
+			if c.forbid != "" && c.want != "" && strings.Contains(out, c.forbid) {
+				t.Errorf("%s: expected %q absent; output:\n%s", c.name, c.forbid, out)
+			}
+		})
 	}
 }
 

@@ -33,7 +33,6 @@ func prRow(pr model.PR, layout rowLayout, s styles, osc8 bool) string {
 	num := osc8Link(fmt.Sprintf("#%d", pr.Number), pr.URL, osc8)
 	numColored := s.BrightYellow.Render(num)
 	ci := ciStatus(pr.CiState, s)
-	review := reviewStatus(pr.ReviewDecision, s)
 	diff := additions(pr, s)
 	title := pr.Title
 	if layout.titleBold {
@@ -43,8 +42,19 @@ func prRow(pr model.PR, layout rowLayout, s styles, osc8 bool) string {
 	if layout.position != "" {
 		pos = "  " + s.Gray.Render(layout.position)
 	}
+	// Surface review state only when action is needed: a blue [review] chip
+	// prompts the reviewer; a red [changes] chip prompts the author. Approved
+	// and unknown decisions stay silent so rows aren't visually cluttered
+	// with state that doesn't demand attention.
+	chip := ""
+	switch pr.ReviewDecision {
+	case model.ReviewRequired:
+		chip = "  " + s.renderChip(s.ReviewChip, "review")
+	case model.ReviewChangesRequested:
+		chip = "  " + s.renderChip(s.ChangesChip, "changes")
+	}
 
-	titleLine := layout.titlePrefix + numColored + "  " + ci + "  " + review + "  " + diff + "  " + title + pos
+	titleLine := layout.titlePrefix + numColored + "  " + ci + "  " + diff + "  " + title + chip + pos
 	branchLine := layout.branchPrefix + s.Gray.Render(pr.HeadRefName)
 	if pr.IsDraft {
 		// Dim per-line, not over the joined row: lipgloss multi-line Render

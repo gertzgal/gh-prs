@@ -41,25 +41,8 @@ func ciTone(st model.CiState) tone {
 	}
 }
 
-func reviewTone(d model.ReviewDecision) tone {
-	switch d {
-	case model.ReviewApproved:
-		return toneOk
-	case model.ReviewChangesRequested:
-		return toneBad
-	case model.ReviewRequired:
-		return tonePending
-	default:
-		return toneNone
-	}
-}
-
 func ciStatus(st model.CiState, s styles) string {
 	return glyphFor(ciTone(st), s) + " " + s.Gray.Render("ci")
-}
-
-func reviewStatus(d model.ReviewDecision, s styles) string {
-	return glyphFor(reviewTone(d), s) + " " + s.Gray.Render("review")
 }
 
 func additions(p model.PR, s styles) string {

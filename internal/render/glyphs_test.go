@@ -33,30 +33,6 @@ func TestCiStatus(t *testing.T) {
 	}
 }
 
-func TestReviewStatus(t *testing.T) {
-	cases := []struct {
-		decision model.ReviewDecision
-		plain    string
-	}{
-		{model.ReviewApproved, "✓ review"},
-		{model.ReviewChangesRequested, "✗ review"},
-		{model.ReviewRequired, "● review"},
-		{"", "○ review"},
-	}
-	for _, c := range cases {
-		if got := reviewStatus(c.decision, newStyles(false)); got != c.plain {
-			t.Errorf("reviewStatus(%q, false) = %q, want %q", c.decision, got, c.plain)
-		}
-		colored := reviewStatus(c.decision, newStyles(true))
-		if !strings.Contains(colored, "\x1b[") {
-			t.Errorf("reviewStatus(%q, true) = %q, want ANSI escape", c.decision, colored)
-		}
-		if !strings.Contains(colored, "review") {
-			t.Errorf("reviewStatus(%q, true) = %q, want substring review", c.decision, colored)
-		}
-	}
-}
-
 func TestAdditions(t *testing.T) {
 	p := model.PR{Additions: 123, Deletions: 45}
 	if got := additions(p, newStyles(false)); got != "+123-45" {
