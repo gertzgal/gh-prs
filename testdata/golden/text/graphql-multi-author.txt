@@ -1,5 +1,5 @@
 
-acme-org/widget · main · @alice
+repo acme-org/widget · base main
 
   stack · 2 PRs
 

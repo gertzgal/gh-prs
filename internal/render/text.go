@@ -96,15 +96,6 @@ func renderStack(node *stacks.Node, s styles, osc8 bool) []string {
 	return lines
 }
 
-func repoHeader(repo *model.Repo, ctx Context, s styles) string {
-	subject := ctx.FilterLabel
-	if subject == "" {
-		subject = "@" + repo.ViewerLogin
-	}
-	text := fmt.Sprintf("%s/%s · %s · %s", repo.Owner, repo.Name, repo.DefaultBranch, subject)
-	return s.Gray.Render(text)
-}
-
 func pluralPR(n int) string {
 	if n == 1 {
 		return "PR"
@@ -190,7 +181,7 @@ func (Text) Format(repo *model.Repo, ctx Context) (string, error) {
 	s := newStyles(ctx.Color)
 	g := stacks.Group(repo.PRs, repo.DefaultBranch)
 	var out []string
-	out = append(out, "", repoHeader(repo, ctx, s), "")
+	out = append(out, "", renderHeader(repo, ctx, s), "")
 
 	if len(ctx.AuthorOrder) > 1 {
 		// Multi-author mode: one @login · N PRs header per author, then that

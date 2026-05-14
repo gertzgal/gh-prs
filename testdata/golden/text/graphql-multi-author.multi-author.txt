@@ -1,5 +1,6 @@
 
-acme-org/widget · main · @alice
+› gh prs --author alice --author bob
+repo acme-org/widget · base main
 
   @alice · 2 PRs
 

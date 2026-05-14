@@ -1,5 +1,6 @@
 
-acme-org/widget · main · @octocat
+› gh prs
+repo acme-org/widget · base main
 
   stack · 4 PRs
 

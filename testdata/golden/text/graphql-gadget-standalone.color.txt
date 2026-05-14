@@ -1,5 +1,5 @@
 
-[90macme-org/widget · main · @octocat[0m
+[90mrepo acme-org/widget · base main[0m
 
   [90mstandalone · 2 PRs[0m
 
