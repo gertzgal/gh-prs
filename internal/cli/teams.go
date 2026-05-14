@@ -91,6 +91,26 @@ func unionLogins(authors, teamLogins []string) []string {
 	return out
 }
 
+// pruneExcluded returns a copy of logins with any entry (case-insensitive)
+// present in excluded removed. Order is preserved.
+func pruneExcluded(logins, excluded []string) []string {
+	if len(excluded) == 0 {
+		return logins
+	}
+	deny := make(map[string]struct{}, len(excluded))
+	for _, e := range excluded {
+		deny[strings.ToLower(e)] = struct{}{}
+	}
+	out := make([]string, 0, len(logins))
+	for _, l := range logins {
+		if _, blocked := deny[strings.ToLower(l)]; blocked {
+			continue
+		}
+		out = append(out, l)
+	}
+	return out
+}
+
 func sortedKeys(set map[string]struct{}) []string {
 	out := make([]string, 0, len(set))
 	for k := range set {
