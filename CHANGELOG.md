@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `--team <slug>` (repeatable, env `GH_PRS_TEAM`, comma-separated) filters PRs
+  to authors who belong to one or more GitHub teams in the current repo's org.
+  Slugs are case-insensitive. Combines with `--author` as a union. Memberships
+  are resolved once and cached on disk for 24h (skip with `--no-cache`).
 - `--format <text|json|toon>` (short `-f`, env `GH_PRS_FORMAT`) selects the
   output format. `toon` emits Token-Oriented Object Notation — a compact,
   agent-friendly tabular format that produces ~50% fewer bytes than JSON on

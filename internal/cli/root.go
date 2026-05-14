@@ -17,11 +17,16 @@ import (
 	"golang.org/x/term"
 )
 
-const USAGE = `Usage: gh prs [--author <login>] [--format <text|json|toon>] [--debug] [--no-cache] [--cache-ttl <dur>] [--stats] [--help]
+const USAGE = `Usage: gh prs [--author <login>] [--team <slug>] [--format <text|json|toon>] [--debug] [--no-cache] [--cache-ttl <dur>] [--stats] [--help]
 
   --author <login> Filter by PR author login. Repeatable: --author alice --author bob
-                   shows PRs by alice OR bob. Defaults to @me (the authenticated user).
-                   Also honored via GH_PRS_AUTHOR (comma-separated: "alice,bob").
+                   shows PRs by alice OR bob. Defaults to @me (the authenticated user)
+                   unless --team is set. Also honored via GH_PRS_AUTHOR
+                   (comma-separated: "alice,bob").
+  --team <slug>    Filter by GitHub team slug in the current repo's org. Repeatable:
+                   --team backend --team fullstack shows PRs by members of either team.
+                   Slugs are case-insensitive. Combines with --author as a union.
+                   Memberships are cached for 24h. Also honored via GH_PRS_TEAM.
   --format <name>  Output format. One of:
                      text  (default) human-readable terminal output with color.
                      json  structured JSON to stdout. No colors, no spinner.
@@ -53,7 +58,7 @@ func Execute(argv []string, env []string) int {
 	envMap := envSliceToMap(env)
 	var cobraDebug, cobraNoCache, cobraStats bool
 	var cobraFormat, cobraCacheTTL string
-	var cobraAuthors []string
+	var cobraAuthors, cobraTeams []string
 	runExit := ExitSuccess
 
 	cmd := &cobra.Command{
@@ -62,7 +67,7 @@ func Execute(argv []string, env []string) int {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			flags := composeFlags(cobraFormat, cobraDebug, cobraNoCache, cobraCacheTTL, cobraStats, cobraAuthors, envMap)
+			flags := composeFlags(cobraFormat, cobraDebug, cobraNoCache, cobraCacheTTL, cobraStats, cobraAuthors, cobraTeams, envMap)
 			if _, ok := render.Lookup(flags.Format); !ok {
 				return fmt.Errorf("unknown --format %q (want %s)", flags.Format, strings.Join(render.Names(), "|"))
 			}
@@ -72,6 +77,7 @@ func Execute(argv []string, env []string) int {
 	}
 	cmd.SetArgs(argv)
 	cmd.Flags().StringArrayVar(&cobraAuthors, "author", nil, "Filter by author login (repeatable; default: @me). Also via GH_PRS_AUTHOR.")
+	cmd.Flags().StringArrayVar(&cobraTeams, "team", nil, "Filter by team slug in current repo's org (repeatable, case-insensitive). Also via GH_PRS_TEAM.")
 	cmd.Flags().StringVarP(&cobraFormat, "format", "f", "", "Output format: text|json|toon (default text; also via GH_PRS_FORMAT)")
 	cmd.Flags().BoolVar(&cobraDebug, "debug", false, "Log actual GraphQL request/response to stderr (also via DEBUG=1)")
 	cmd.Flags().BoolVar(&cobraNoCache, "no-cache", false, "Skip the disk cache (also via GH_PRS_NO_CACHE=1)")
@@ -121,14 +127,29 @@ func runOnce(flags Flags, env map[string]string, stdout, stderr io.Writer) int {
 	// Execute already validated via render.Lookup; safe to ignore ok.
 	formatter, _ := render.Lookup(flags.Format)
 
-	// Build the filter set. Flags.Authors is empty when --author was not
-	// passed (and GH_PRS_AUTHOR is unset); we default to @me so the
-	// behaviour matches the original "show my PRs" default.
+	// Build the filter set.
+	//
+	// Author/team logic:
+	//   1. Resolve --team slugs to logins (network; cached on disk for 24h).
+	//   2. Union team logins with --author logins.
+	//   3. If the user passed neither --author nor --team, default to @me
+	//      so the bare "gh prs" still means "show my PRs".
+	//   4. If --team was passed but --author was not, DO NOT inject @me:
+	//      the user's intent is "PRs by this team", not "PRs by me or this
+	//      team".
+	teamLogins, teamErr := resolveTeamsForCurrentRepo(flags, clientOpts, stderr)
+	if teamErr != nil {
+		spinner.Stop()
+		_, _ = fmt.Fprintf(stderr, "gh prs: %s\n", teamErr)
+		return MapError(teamErr, false)
+	}
+
 	authors := flags.Authors
-	if len(authors) == 0 {
+	if len(authors) == 0 && len(teamLogins) == 0 {
 		authors = []string{"@me"}
 	}
-	af := filter.NewAuthorFilter(authors)
+	combined := unionLogins(authors, teamLogins)
+	af := filter.NewAuthorFilter(combined)
 	filters := filter.NewSet(
 		[]filter.QueryFilter{af},
 		[]filter.ListFilter{af},
@@ -145,7 +166,7 @@ func runOnce(flags Flags, env map[string]string, stdout, stderr io.Writer) int {
 			LatencyMs:   0,
 			ShowStats:   flags.Stats,
 			FilterLabel: filters.Label(),
-			AuthorOrder: authors,
+			AuthorOrder: combined,
 		},
 		Stdout: stdout,
 		Stderr: stderr,
