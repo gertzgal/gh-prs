@@ -409,11 +409,18 @@ func TestText_MultiAuthor_PerAuthorTotals_AndDivider(t *testing.T) {
 	if !strings.Contains(out, "+3 -1") {
 		t.Errorf("missing bob totals (+3 -1); got:\n%s", out)
 	}
-	// Divider between sections — should appear exactly once (between alice and bob),
-	// not after bob.
-	dividerCount := strings.Count(out, strings.Repeat("·", 10))
-	if dividerCount < 1 {
-		t.Errorf("expected at least one dotted divider; got %d in:\n%s", dividerCount, out)
+	// Divider between sections — should appear exactly once (between alice
+	// and bob), never after the last rendered section. Count actual divider
+	// lines, not substring windows, since a single long divider matches
+	// "··········" multiple times via strings.Count.
+	dividerLines := 0
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains(line, strings.Repeat("·", 10)) {
+			dividerLines++
+		}
+	}
+	if dividerLines != 1 {
+		t.Errorf("expected exactly one dotted divider line between alice and bob; got %d in:\n%s", dividerLines, out)
 	}
 }
 
@@ -430,5 +437,10 @@ func TestText_MultiAuthor_EmptyAuthorSectionOmitted(t *testing.T) {
 	}
 	if !strings.Contains(out, "@alice · 1 PR") {
 		t.Errorf("want @alice · 1 PR; got:\n%s", out)
+	}
+	// And the divider must not appear at all — there is only one rendered
+	// section, so there is nothing to divide.
+	if strings.Contains(out, strings.Repeat("·", 10)) {
+		t.Errorf("no divider should appear when only one section renders; got:\n%s", out)
 	}
 }

@@ -149,6 +149,16 @@ func groupByAuthor(g stacks.Grouped, authorOrder []string) []authorSection {
 	return sections
 }
 
+// sectionPRCount returns the total number of PRs in an author section,
+// counting both stacked PRs (walking each chain) and standalone PRs.
+func sectionPRCount(sec authorSection) int {
+	n := 0
+	for _, node := range sec.Stacks {
+		n += len(flattenStack(node))
+	}
+	return n + len(sec.Standalone)
+}
+
 // authorHeaderLine renders the per-author header with `left` on the left,
 // `right` right-aligned within the row when width >= 80, or stacked on two
 // lines below that threshold. Both halves are already styled.
@@ -157,15 +167,13 @@ func authorHeaderLine(left, right string, width int, s styles) string {
 	if width < 80 {
 		return leftStyled + "\n  " + right
 	}
-	gap := width - lipgloss.Width(leftStyled) - lipgloss.Width(right)
-	if gap < 1 {
-		gap = 1
-	}
+	gap := max(1, width-lipgloss.Width(leftStyled)-lipgloss.Width(right))
 	return leftStyled + strings.Repeat(" ", gap) + right
 }
 
 // sectionDivider renders a dotted horizontal rule. Truncates to width-2 when
-// width > 0 to leave breathing room; falls back to a fixed length otherwise.
+// width > 0 to leave breathing room; falls back to 80 dots otherwise — 80
+// matches the narrow-terminal threshold used elsewhere in the layout.
 func sectionDivider(width int, s styles) string {
 	n := width - 2
 	if n <= 0 {
@@ -224,24 +232,29 @@ func (Text) Format(repo *model.Repo, ctx Context) (string, error) {
 		// Multi-author mode: one @login · N PRs header per author, then that
 		// author's stacks and standalone sub-sections.
 		sections := groupByAuthor(g, ctx.AuthorOrder)
+		// Identify the last non-empty section so the divider only appears
+		// between sections that will actually render — never trailing.
+		lastNonEmpty := -1
 		for i, sec := range sections {
-			stackedCount := 0
-			for _, node := range sec.Stacks {
-				stackedCount += len(flattenStack(node))
+			if sectionPRCount(sec) > 0 {
+				lastNonEmpty = i
 			}
-			prCount := stackedCount + len(sec.Standalone)
+		}
+		for i, sec := range sections {
+			prCount := sectionPRCount(sec)
 			if prCount == 0 {
 				continue
 			}
 			left := fmt.Sprintf("@%s · %d %s", sec.Login, prCount, pluralPR(prCount))
-			// Totals are secondary — the author label is the dominant element. We
-			// dim the numbers (faint) so the eye lands on "@login · N PRs" first.
-			right := s.Green.Faint(true).Render(fmt.Sprintf("+%d", sec.Adds)) +
-				" " + s.Red.Faint(true).Render(fmt.Sprintf("-%d", sec.Dels))
+			// Totals are secondary — the author label is the dominant element.
+			// Numbers carry diff color; the +/- sign-prefixes stay in meta gray
+			// so the totals don't visually shout louder than the author label.
+			right := s.Gray.Render("+") + s.Green.Render(fmt.Sprintf("%d", sec.Adds)) +
+				" " + s.Gray.Render("-") + s.Red.Render(fmt.Sprintf("%d", sec.Dels))
 			authorHeader := authorHeaderLine(left, right, ctx.Width, s)
 			out = append(out, authorHeader, "")
 			out = append(out, renderSections(sec.Stacks, sec.Standalone, s, ctx.OSC8)...)
-			if i < len(sections)-1 {
+			if i < lastNonEmpty {
 				out = append(out, sectionDivider(ctx.Width, s), "")
 			}
 		}
