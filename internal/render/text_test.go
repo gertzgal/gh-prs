@@ -455,10 +455,11 @@ func TestText_PerRowDiff_InlineWhenNarrow(t *testing.T) {
 	pr := samplePR(model.PR{Number: 1, Title: "X"})
 	pr.Additions, pr.Deletions = 5, 2
 	out := mustFormat(t, Text{}, repoWith([]model.PR{pr}, nil), Context{Width: 70})
-	// At narrow widths the diff stays inline (between ci and title), not at
-	// the row edge.
-	if !strings.Contains(out, "+5-2  X") {
-		t.Errorf("expected inline diff at width=70; got:\n%s", out)
+	// At narrow widths the diff stays inline at the end of the row (after
+	// title and any chip/pos), separated by two spaces — the spec's row
+	// priority order is preserved, just without right-edge padding.
+	if !strings.Contains(out, "X  +5-2") {
+		t.Errorf("expected inline diff at end of row at width=70; got:\n%s", out)
 	}
 }
 

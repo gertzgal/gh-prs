@@ -60,18 +60,18 @@ func prRow(pr model.PR, layout rowLayout, s styles, osc8 bool, rowWidth int) str
 		chip = "  " + s.renderChip(s.ChangesChip, "changes")
 	}
 
-	// Right-align the diff totals to the row edge when the terminal is wide
-	// enough AND there is meaningful space between the left content and the
-	// diff. Otherwise keep the inline placement so narrow terminals still
-	// look reasonable.
+	// Build the row's primary content following spec priority:
+	// marker → #NUM → CI → title → action chip → pos. The diff totals come
+	// last and right-align to the row edge when the terminal is wide enough
+	// AND there's meaningful space; otherwise they sit inline at the end of
+	// the same line with a two-space separator.
 	leftPart := layout.titlePrefix + numColored + "  " + ci + "  " + title + chip + pos
 	var titleLine string
 	gap := rowWidth - lipgloss.Width(leftPart) - lipgloss.Width(diff)
 	if rowWidth >= 80 && gap >= minRightAlignGap {
 		titleLine = leftPart + strings.Repeat(" ", gap) + diff
 	} else {
-		// Fall back to the historical inline layout: ci · diff · title · chip · pos.
-		titleLine = layout.titlePrefix + numColored + "  " + ci + "  " + diff + "  " + title + chip + pos
+		titleLine = leftPart + "  " + diff
 	}
 	branchLine := layout.branchPrefix + s.Gray.Render(pr.HeadRefName)
 	if pr.IsDraft {

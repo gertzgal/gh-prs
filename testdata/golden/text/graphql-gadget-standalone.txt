@@ -7,10 +7,10 @@ repo acme-org/widget · base main
 
   standalone · 2 PRs
 
-  #2001  ✗ ci  +84-23  [ACME-200] Fix config loader error handling  [review]
+  #2001  ✗ ci  [ACME-200] Fix config loader error handling  [review]  +84-23
            fix/ACME-200-config-loader
 
-  #2002  ✗ ci  +256-12  [ACME-201] WIP: refactor cache invalidation  [review]
+  #2002  ✗ ci  [ACME-201] WIP: refactor cache invalidation  [review]  +256-12
            feature/ACME-201-cache-refactor
 
   0ms · ● 1pt · 4998 remaining

@@ -8,13 +8,13 @@ repo acme-org/widget · base main
 
   stack · 4 PRs
 
-  ┬ #1001  ✓ ci  +515-59  [ACME-100] Add feature foundation (1/3)  [review]  1/4
+  ┬ #1001  ✓ ci  [ACME-100] Add feature foundation (1/3)  [review]  1/4  +515-59
   │          ACME-100/feature-1-foundation
-  ├ #1002  ✓ ci  +342-27  [ACME-100] Add feature UI (2/3)  2/4
+  ├ #1002  ✓ ci  [ACME-100] Add feature UI (2/3)  2/4  +342-27
   │          ACME-100/feature-2-ui
-  ├ #1003  ✓ ci  +218-41  [ACME-100] Wire feature module (3/3)  3/4
+  ├ #1003  ✓ ci  [ACME-100] Wire feature module (3/3)  3/4  +218-41
   │          ACME-100/feature-3-wiring
-  └ #1004  ✓ ci  +47-183  [ACME-100] Remove legacy helpers (cleanup)  4/4
+  └ #1004  ✓ ci  [ACME-100] Remove legacy helpers (cleanup)  4/4  +47-183
              ACME-100/feature-4-cleanup
 
   0ms · ● 1pt · 4999 remaining
