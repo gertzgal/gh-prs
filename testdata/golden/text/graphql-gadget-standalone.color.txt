@@ -1,12 +1,17 @@
 
-[90macme-org/widget · main · @octocat[0m
+[90mrepo acme-org/widget · base main[0m
+
+╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ [32m┬─●[0m stack   [35m●[0m standalone   [32m✓[0m CI passed   [33m●[0m CI pending   [31m✗[0m CI failed   [90m○[0m CI unknown   [32m+[0m additions   [31m-[0m deletions   [44m [0m[97;44mreview[0m[44m [0m reviewer   [41m [0m[97;41mchanges[0m[41m [0m author │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
   [90mstandalone · 2 PRs[0m
 
-  [93m#2001[0m  [31m✗[0m [90mci[0m  [33m●[0m [90mreview[0m  [32m+84[0m[31m-23[0m  [ACME-200] Fix config loader error handling
+  [93m#2001[0m  [31m✗[0m [90mci[0m  [ACME-200] Fix config loader error handling  [44m [0m[97;44mreview[0m[44m [0m  [32m+84[0m[31m-23[0m
            [90mfix/ACME-200-config-loader[0m
 
-[2m  [93m#2002[0m  [31m✗[0m [90mci[0m  [33m●[0m [90mreview[0m  [32m+256[0m[31m-12[0m  [ACME-201] WIP: refactor cache invalidation
-           [90mfeature/ACME-201-cache-refactor[0m[0m
+[2m  [93m#2002[0m  [31m✗[0m [90mci[0m  [ACME-201] WIP: refactor cache invalidation  [44m [0m[97;44mreview[0m[44m [0m  [32m+256[0m[31m-12[0m[0m
+[2m           [90mfeature/ACME-201-cache-refactor[0m[0m
 
+  2 PRs in 0 stacks, 2 standalone   [32m✓ 0 passed[0m  [33m● 0 pending[0m  [31m✗ 2 failed[0m   [32m+340[0m [31m-35[0m
   [90m0ms · ● 1pt · 4998 remaining[0m

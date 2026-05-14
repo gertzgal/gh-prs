@@ -243,7 +243,8 @@ func TestSet_Label_ZeroValue_ReturnsEmpty(t *testing.T) {
 }
 
 func TestSet_Label_MeOnly_ReturnsEmpty(t *testing.T) {
-	// Default invocation (@me) must yield "" so repoHeader falls back.
+	// Default invocation (@me) must yield "" so the header metadata strip
+	// omits the filter component.
 	s := filter.NewSet(
 		[]filter.QueryFilter{filter.NewAuthorFilter([]string{"@me"})},
 		nil,

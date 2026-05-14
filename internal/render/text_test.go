@@ -45,6 +45,9 @@ func samplePR(overrides model.PR) model.PR {
 	if overrides.Author != "" {
 		base.Author = overrides.Author
 	}
+	if overrides.ReviewDecision != "" {
+		base.ReviewDecision = overrides.ReviewDecision
+	}
 	return base
 }
 
@@ -150,8 +153,12 @@ func TestText_FooterNilRateLimit(t *testing.T) {
 	if strings.Contains(out, "remaining") {
 		t.Errorf("footer should not contain remaining")
 	}
-	if strings.Contains(out, "●") {
-		t.Errorf("footer should not contain ●")
+	// The footer's rate-limit pip uses "● Npt"; check for that specific
+	// pattern rather than a bare "●" rune, since the legend (rendered at
+	// width=0) also contains "●" for the "standalone" and "CI pending"
+	// tokens.
+	if strings.Contains(out, "● ") && strings.Contains(out, "pt") {
+		t.Errorf("footer should not contain ● Npt pattern")
 	}
 }
 
@@ -169,7 +176,10 @@ func TestText_FooterHiddenByDefault(t *testing.T) {
 	prs := []model.PR{samplePR(model.PR{})}
 	out := mustFormat(t, Text{}, repoWith(prs, rl), Context{Color: false, OSC8: false, LatencyMs: 1408})
 
-	for _, needle := range []string{"1408ms", "1pt", "4655 remaining", "●"} {
+	// The "●" rune is not a footer-only marker anymore — the legend uses it
+	// for "● standalone" and "● CI pending". Drop it from this check and
+	// rely on the footer-specific needles (latency, cost, remaining).
+	for _, needle := range []string{"1408ms", "1pt", "4655 remaining"} {
 		if strings.Contains(out, needle) {
 			t.Errorf("footer leaked without ShowStats: found %q in:\n%s", needle, out)
 		}
@@ -375,6 +385,137 @@ func TestText_MultiAuthor_BotSuffixMismatch(t *testing.T) {
 	}
 }
 
+func TestText_MultiAuthor_PerAuthorTotals_AndDivider(t *testing.T) {
+	prs := []model.PR{
+		samplePR(model.PR{Number: 1, Author: "alice", HeadRefName: "feat/a-1", Title: "Alice 1"}),
+		samplePR(model.PR{Number: 2, Author: "alice", HeadRefName: "feat/a-2", Title: "Alice 2"}),
+		samplePR(model.PR{Number: 3, Author: "bob", HeadRefName: "feat/b-1", Title: "Bob 1"}),
+	}
+	// Force additions/deletions for measurable totals.
+	prs[0].Additions, prs[0].Deletions = 10, 5
+	prs[1].Additions, prs[1].Deletions = 20, 7
+	prs[2].Additions, prs[2].Deletions = 3, 1
+
+	repo := repoWith(prs, nil)
+	ctx := Context{Color: false, OSC8: false, AuthorOrder: []string{"alice", "bob"}, Width: 120}
+	out := mustFormat(t, Text{}, repo, ctx)
+
+	if !strings.Contains(out, "@alice · 2 PRs") {
+		t.Errorf("missing alice header; got:\n%s", out)
+	}
+	if !strings.Contains(out, "+30 -12") {
+		t.Errorf("missing alice totals (+30 -12); got:\n%s", out)
+	}
+	if !strings.Contains(out, "@bob · 1 PR") {
+		t.Errorf("missing bob header; got:\n%s", out)
+	}
+	if !strings.Contains(out, "+3 -1") {
+		t.Errorf("missing bob totals (+3 -1); got:\n%s", out)
+	}
+	// Divider between sections — should appear exactly once (between alice
+	// and bob), never after the last rendered section. Count actual divider
+	// lines, not substring windows, since a single long divider matches
+	// "··········" multiple times via strings.Count.
+	dividerLines := 0
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains(line, strings.Repeat("·", 10)) {
+			dividerLines++
+		}
+	}
+	if dividerLines != 1 {
+		t.Errorf("expected exactly one dotted divider line between alice and bob; got %d in:\n%s", dividerLines, out)
+	}
+}
+
+func TestText_PerRowDiff_RightAlignedWhenWide(t *testing.T) {
+	pr := samplePR(model.PR{Number: 1, Title: "X"})
+	pr.Additions, pr.Deletions = 5, 2
+	out := mustFormat(t, Text{}, repoWith([]model.PR{pr}, nil), Context{Width: 120})
+	// Right-aligned: expect padding spaces before "+5-2".
+	var row string
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains(line, "#1") {
+			row = line
+			break
+		}
+	}
+	if row == "" {
+		t.Fatalf("row not found in:\n%s", out)
+	}
+	if !strings.HasSuffix(strings.TrimRight(row, " "), "-2") {
+		t.Errorf("row should end with diff totals; got %q", row)
+	}
+	// At width=120 there should be multiple spaces between the title text and "+5".
+	if !strings.Contains(row, "   +5-2") {
+		t.Errorf("expected right-aligned diff with padding; got %q", row)
+	}
+}
+
+func TestText_PerRowDiff_InlineWhenNarrow(t *testing.T) {
+	pr := samplePR(model.PR{Number: 1, Title: "X"})
+	pr.Additions, pr.Deletions = 5, 2
+	out := mustFormat(t, Text{}, repoWith([]model.PR{pr}, nil), Context{Width: 70})
+	// At narrow widths the diff stays inline at the end of the row (after
+	// title and any chip/pos), separated by two spaces — the spec's row
+	// priority order is preserved, just without right-edge padding.
+	if !strings.Contains(out, "X  +5-2") {
+		t.Errorf("expected inline diff at end of row at width=70; got:\n%s", out)
+	}
+}
+
+func TestText_Chip_PerReviewDecision(t *testing.T) {
+	cases := []struct {
+		name     string
+		decision model.ReviewDecision
+		want     string // expected literal in no-color output, or "" for none
+		forbid   string // expected absent (the other chip, when relevant)
+	}{
+		{"required shows [review]", model.ReviewRequired, "[review]", "[changes]"},
+		{"changes requested shows [changes]", model.ReviewChangesRequested, "[changes]", "[review]"},
+		{"approved shows nothing", model.ReviewApproved, "", "[review]"},
+		{"unknown shows nothing", "", "", "[review]"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			prs := []model.PR{samplePR(model.PR{Number: 1, Title: "X", ReviewDecision: c.decision})}
+			// Width=70 suppresses the legend so its "[review] reviewer"
+			// example doesn't leak into row-level chip assertions.
+			out := mustFormat(t, Text{}, repoWith(prs, nil), Context{Width: 70})
+			if c.want != "" && !strings.Contains(out, c.want) {
+				t.Errorf("%s: expected %q in output:\n%s", c.name, c.want, out)
+			}
+			if c.want == "" {
+				// Neither chip should appear.
+				if strings.Contains(out, "[review]") || strings.Contains(out, "[changes]") {
+					t.Errorf("%s: expected no chip; output:\n%s", c.name, out)
+				}
+			}
+			if c.forbid != "" && c.want != "" && strings.Contains(out, c.forbid) {
+				t.Errorf("%s: expected %q absent; output:\n%s", c.name, c.forbid, out)
+			}
+		})
+	}
+}
+
+func TestText_StackOfOne_RendersAsStandalone(t *testing.T) {
+	prs := []model.PR{
+		samplePR(model.PR{Number: 42, HeadRefName: "feat/solo", BaseRefName: "main", Title: "Solo PR"}),
+	}
+	// Width=70 suppresses the legend (which contains the ┬ glyph), so the
+	// stack-glyph check below only sees row-level content.
+	out := mustFormat(t, Text{}, repoWith(prs, nil), Context{Width: 70})
+
+	if strings.Contains(out, "stack · 1 PR") {
+		t.Errorf("single PR must not be labeled as a stack; got:\n%s", out)
+	}
+	if !strings.Contains(out, "standalone · 1 PR") {
+		t.Errorf("single PR should fall through to standalone section; got:\n%s", out)
+	}
+	if strings.Contains(out, "┬") || strings.Contains(out, "└") {
+		t.Errorf("stack glyphs should not appear for a single PR; got:\n%s", out)
+	}
+}
+
 func TestText_MultiAuthor_EmptyAuthorSectionOmitted(t *testing.T) {
 	// carol has no PRs — her section should not appear
 	prs := []model.PR{
@@ -388,5 +529,10 @@ func TestText_MultiAuthor_EmptyAuthorSectionOmitted(t *testing.T) {
 	}
 	if !strings.Contains(out, "@alice · 1 PR") {
 		t.Errorf("want @alice · 1 PR; got:\n%s", out)
+	}
+	// And the divider must not appear at all — there is only one rendered
+	// section, so there is nothing to divide.
+	if strings.Contains(out, strings.Repeat("·", 10)) {
+		t.Errorf("no divider should appear when only one section renders; got:\n%s", out)
 	}
 }

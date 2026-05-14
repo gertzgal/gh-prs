@@ -15,21 +15,21 @@ const (
 	toneNone
 )
 
-func glyphFor(t tone, color bool) string {
+func glyphFor(t tone, s styles) string {
 	switch t {
 	case toneOk:
-		return fgGreen("✓", color)
+		return s.Green.Render("✓")
 	case toneBad:
-		return fgRed("✗", color)
+		return s.Red.Render("✗")
 	case tonePending:
-		return fgYellow("●", color)
+		return s.Yellow.Render("●")
 	default:
-		return fgGray("○", color)
+		return s.Gray.Render("○")
 	}
 }
 
-func ciTone(s model.CiState) tone {
-	switch s {
+func ciTone(st model.CiState) tone {
+	switch st {
 	case model.CiSuccess:
 		return toneOk
 	case model.CiFailure, model.CiError:
@@ -41,27 +41,11 @@ func ciTone(s model.CiState) tone {
 	}
 }
 
-func reviewTone(d model.ReviewDecision) tone {
-	switch d {
-	case model.ReviewApproved:
-		return toneOk
-	case model.ReviewChangesRequested:
-		return toneBad
-	case model.ReviewRequired:
-		return tonePending
-	default:
-		return toneNone
-	}
+func ciStatus(st model.CiState, s styles) string {
+	return glyphFor(ciTone(st), s) + " " + s.Gray.Render("ci")
 }
 
-func ciStatus(s model.CiState, color bool) string {
-	return glyphFor(ciTone(s), color) + " " + fgGray("ci", color)
-}
-
-func reviewStatus(d model.ReviewDecision, color bool) string {
-	return glyphFor(reviewTone(d), color) + " " + fgGray("review", color)
-}
-
-func additions(p model.PR, color bool) string {
-	return fgGreen(fmt.Sprintf("+%d", p.Additions), color) + fgRed(fmt.Sprintf("-%d", p.Deletions), color)
+func additions(p model.PR, s styles) string {
+	return s.Green.Render(fmt.Sprintf("+%d", p.Additions)) +
+		s.Red.Render(fmt.Sprintf("-%d", p.Deletions))
 }

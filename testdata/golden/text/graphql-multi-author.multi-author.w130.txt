@@ -1,0 +1,29 @@
+
+› gh prs --author alice --author bob
+repo acme-org/widget · base main
+
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ┬─● stack   ● standalone   ✓ CI passed   ● CI pending   ✗ CI failed   ○ CI unknown   + additions   - deletions   [review]    │
+│ reviewer   [changes] author                                                                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+  @alice · 2 PRs                                                                                                          +298 -17
+
+  stack · 2 PRs
+
+  ┬ #3001  ✓ ci  [FEAT-1] Add authentication layer (1/2)  [review]  1/2                                                     +210-5
+  │          alice/feat-1-auth-base
+  └ #3002  ✓ ci  [FEAT-1] Wire authentication into routes (2/2)  2/2                                                        +88-12
+             alice/feat-1-auth-routes
+
+  ································································································································
+
+  @bob · 1 PR                                                                                                              +113 -2
+
+  standalone · 1 PR
+
+  #3003  ✓ ci  [FEAT-2] Add rate limiting middleware  [review]                                                              +113-2
+           bob/feat-2-rate-limit
+
+  3 PRs in 1 stack, 1 standalone   ✓ 3 passed  ● 0 pending  ✗ 0 failed   +411 -19
+  0ms · ● 1pt · 4996 remaining

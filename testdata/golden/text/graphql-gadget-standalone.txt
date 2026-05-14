@@ -1,12 +1,17 @@
 
-acme-org/widget · main · @octocat
+repo acme-org/widget · base main
+
+╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ┬─● stack   ● standalone   ✓ CI passed   ● CI pending   ✗ CI failed   ○ CI unknown   + additions   - deletions   [review] reviewer   [changes] author │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
   standalone · 2 PRs
 
-  #2001  ✗ ci  ● review  +84-23  [ACME-200] Fix config loader error handling
+  #2001  ✗ ci  [ACME-200] Fix config loader error handling  [review]  +84-23
            fix/ACME-200-config-loader
 
-  #2002  ✗ ci  ● review  +256-12  [ACME-201] WIP: refactor cache invalidation
+  #2002  ✗ ci  [ACME-201] WIP: refactor cache invalidation  [review]  +256-12
            feature/ACME-201-cache-refactor
 
+  2 PRs in 0 stacks, 2 standalone   ✓ 0 passed  ● 0 pending  ✗ 2 failed   +340 -35
   0ms · ● 1pt · 4998 remaining

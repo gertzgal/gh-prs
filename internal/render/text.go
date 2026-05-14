@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/gertzgal/gh-prs/internal/model"
 	"github.com/gertzgal/gh-prs/internal/stacks"
 )
@@ -28,33 +29,60 @@ type rowLayout struct {
 	titleBold    bool
 }
 
-type renderOpts struct {
-	color bool
-	osc8  bool
-}
+// minRightAlignGap is the smallest acceptable distance between the left
+// edge of the diff totals and the rightmost content to their left. Below
+// this gap the diff visually collides with the title or chip; we fall back
+// to inline placement (two-space separator) so narrow gaps stay readable.
+const minRightAlignGap = 4
 
-func prRow(pr model.PR, layout rowLayout, opts renderOpts) string {
-	num := osc8Link(fmt.Sprintf("#%d", pr.Number), pr.URL, opts.osc8)
-	numColored := fgBrightYellow(num, opts.color)
-	ci := ciStatus(pr.CiState, opts.color)
-	review := reviewStatus(pr.ReviewDecision, opts.color)
-	diff := additions(pr, opts.color)
+func prRow(pr model.PR, layout rowLayout, s styles, osc8 bool, rowWidth int) string {
+	num := osc8Link(fmt.Sprintf("#%d", pr.Number), pr.URL, osc8)
+	numColored := s.BrightYellow.Render(num)
+	ci := ciStatus(pr.CiState, s)
+	diff := additions(pr, s)
 	title := pr.Title
 	if layout.titleBold {
-		title = styleBold(pr.Title, opts.color)
+		title = s.Bold.Render(pr.Title)
 	}
 	pos := ""
 	if layout.position != "" {
-		pos = "  " + fgGray(layout.position, opts.color)
+		pos = "  " + s.Gray.Render(layout.position)
+	}
+	// Surface review state only when action is needed: a blue [review] chip
+	// prompts the reviewer; a red [changes] chip prompts the author. Approved
+	// and unknown decisions stay silent so rows aren't visually cluttered
+	// with state that doesn't demand attention.
+	chip := ""
+	switch pr.ReviewDecision {
+	case model.ReviewRequired:
+		chip = "  " + s.renderChip(s.ReviewChip, "review")
+	case model.ReviewChangesRequested:
+		chip = "  " + s.renderChip(s.ChangesChip, "changes")
 	}
 
-	titleLine := layout.titlePrefix + numColored + "  " + ci + "  " + review + "  " + diff + "  " + title + pos
-	branchLine := layout.branchPrefix + fgGray(pr.HeadRefName, opts.color)
-	row := titleLine + "\n" + branchLine
-	if pr.IsDraft {
-		return styleDim(row, opts.color)
+	// Build the row's primary content following spec priority:
+	// marker → #NUM → CI → title → action chip → pos. The diff totals come
+	// last and right-align to the row edge when the terminal is wide enough
+	// AND there's meaningful space; otherwise they sit inline at the end of
+	// the same line with a two-space separator.
+	leftPart := layout.titlePrefix + numColored + "  " + ci + "  " + title + chip + pos
+	var titleLine string
+	gap := rowWidth - lipgloss.Width(leftPart) - lipgloss.Width(diff)
+	if rowWidth >= 80 && gap >= minRightAlignGap {
+		titleLine = leftPart + strings.Repeat(" ", gap) + diff
+	} else {
+		titleLine = leftPart + "  " + diff
 	}
-	return row
+	branchLine := layout.branchPrefix + s.Gray.Render(pr.HeadRefName)
+	if pr.IsDraft {
+		// Dim per-line, not over the joined row: lipgloss multi-line Render
+		// pads short lines to max width, which would inject trailing spaces
+		// and shift layout. The trade-off is two separate dim envelopes in
+		// the output bytes — visually identical, but reflected in golden
+		// files. Preserving layout is worth more than envelope count.
+		return s.Dim.Render(titleLine) + "\n" + s.Dim.Render(branchLine)
+	}
+	return titleLine + "\n" + branchLine
 }
 
 func flattenStack(node *stacks.Node) []model.PR {
@@ -65,7 +93,7 @@ func flattenStack(node *stacks.Node) []model.PR {
 	return out
 }
 
-func renderStack(node *stacks.Node, opts renderOpts) []string {
+func renderStack(node *stacks.Node, s styles, osc8 bool, width int) []string {
 	prs := flattenStack(node)
 	n := len(prs)
 	lines := make([]string, 0, n)
@@ -79,31 +107,22 @@ func renderStack(node *stacks.Node, opts renderOpts) []string {
 		default:
 			glyph = "├"
 		}
-		connector := fgGray(glyph, opts.color)
+		connector := s.Gray.Render(glyph)
 		titlePrefix := "  " + connector + " "
 		var branchPrefix string
 		if i == n-1 {
 			branchPrefix = strings.Repeat(" ", 13)
 		} else {
-			branchPrefix = "  " + fgGray("│", opts.color) + strings.Repeat(" ", 10)
+			branchPrefix = "  " + s.Gray.Render("│") + strings.Repeat(" ", 10)
 		}
 		lines = append(lines, prRow(pr, rowLayout{
 			titlePrefix:  titlePrefix,
 			branchPrefix: branchPrefix,
 			position:     fmt.Sprintf("%d/%d", i+1, n),
 			titleBold:    i == 0,
-		}, opts))
+		}, s, osc8, width))
 	}
 	return lines
-}
-
-func repoHeader(repo *model.Repo, ctx Context, opts renderOpts) string {
-	subject := ctx.FilterLabel
-	if subject == "" {
-		subject = "@" + repo.ViewerLogin
-	}
-	text := fmt.Sprintf("%s/%s · %s · %s", repo.Owner, repo.Name, repo.DefaultBranch, subject)
-	return fgGray(text, opts.color)
 }
 
 func pluralPR(n int) string {
@@ -113,8 +132,8 @@ func pluralPR(n int) string {
 	return "PRs"
 }
 
-func sectionLabel(kind string, n int, opts renderOpts) string {
-	return "  " + fgGray(fmt.Sprintf("%s · %d %s", kind, n, pluralPR(n)), opts.color)
+func sectionLabel(kind string, n int, s styles) string {
+	return "  " + s.Gray.Render(fmt.Sprintf("%s · %d %s", kind, n, pluralPR(n)))
 }
 
 // authorSection groups stacks and standalone PRs for a single author.
@@ -122,6 +141,8 @@ type authorSection struct {
 	Login      string // resolved login (never "@me")
 	Stacks     []*stacks.Node
 	Standalone []model.PR
+	Adds       int
+	Dels       int
 }
 
 // groupByAuthor partitions stacks and standalone PRs by author, preserving
@@ -140,14 +161,53 @@ func groupByAuthor(g stacks.Grouped, authorOrder []string) []authorSection {
 	for _, node := range g.Stacks {
 		if i, ok := idx[lowerKey(node.PR.Author)]; ok {
 			sections[i].Stacks = append(sections[i].Stacks, node)
+			for cur := node; cur != nil; cur = cur.Child {
+				sections[i].Adds += cur.PR.Additions
+				sections[i].Dels += cur.PR.Deletions
+			}
 		}
 	}
 	for _, pr := range g.Standalone {
 		if i, ok := idx[lowerKey(pr.Author)]; ok {
 			sections[i].Standalone = append(sections[i].Standalone, pr)
+			sections[i].Adds += pr.Additions
+			sections[i].Dels += pr.Deletions
 		}
 	}
 	return sections
+}
+
+// sectionPRCount returns the total number of PRs in an author section,
+// counting both stacked PRs (walking each chain) and standalone PRs.
+func sectionPRCount(sec authorSection) int {
+	n := 0
+	for _, node := range sec.Stacks {
+		n += len(flattenStack(node))
+	}
+	return n + len(sec.Standalone)
+}
+
+// authorHeaderLine renders the per-author header with `left` on the left,
+// `right` right-aligned within the row when width >= 80, or stacked on two
+// lines below that threshold. Both halves are already styled.
+func authorHeaderLine(left, right string, width int, s styles) string {
+	leftStyled := "  " + s.Gray.Render(left)
+	if width < 80 {
+		return leftStyled + "\n  " + right
+	}
+	gap := max(1, width-lipgloss.Width(leftStyled)-lipgloss.Width(right))
+	return leftStyled + strings.Repeat(" ", gap) + right
+}
+
+// sectionDivider renders a dotted horizontal rule. Truncates to width-2 when
+// width > 0 to leave breathing room; falls back to 80 dots otherwise — 80
+// matches the narrow-terminal threshold used elsewhere in the layout.
+func sectionDivider(width int, s styles) string {
+	n := width - 2
+	if n <= 0 {
+		n = 80
+	}
+	return "  " + s.Gray.Render(strings.Repeat("·", n))
 }
 
 func standaloneLayout() rowLayout {
@@ -159,28 +219,47 @@ func standaloneLayout() rowLayout {
 
 // renderSections emits lines for stacks + standalone within a single logical
 // section (used for both single-author and per-author-group paths).
-func renderSections(stackNodes []*stacks.Node, standalone []model.PR, opts renderOpts) []string {
-	var out []string
+//
+// A "stack" with a single PR is demoted into the standalone slice: single-PR
+// stacks would render as a lone ┬/└ rail glyph that adds noise without any
+// chain to anchor it. The defensive fallback keeps row rendering predictable
+// even if upstream grouping ever produces a degenerate single-node chain
+// (e.g. after author filters trim a multi-PR stack down to one).
+func renderSections(stackNodes []*stacks.Node, standalone []model.PR, s styles, osc8 bool, width int) []string {
+	var realStacks []*stacks.Node
+	// Copy so we don't mutate the caller's slice header.
+	demoted := append([]model.PR(nil), standalone...)
+	for _, node := range stackNodes {
+		flat := flattenStack(node)
+		if len(flat) <= 1 {
+			if len(flat) == 1 {
+				demoted = append(demoted, flat[0])
+			}
+			continue
+		}
+		realStacks = append(realStacks, node)
+	}
 
+	var out []string
 	stackedCount := 0
-	for _, s := range stackNodes {
-		stackedCount += len(flattenStack(s))
+	for _, sn := range realStacks {
+		stackedCount += len(flattenStack(sn))
 	}
 	if stackedCount > 0 {
-		out = append(out, sectionLabel("stack", stackedCount, opts), "")
-		for _, s := range stackNodes {
-			out = append(out, renderStack(s, opts)...)
+		out = append(out, sectionLabel("stack", stackedCount, s), "")
+		for _, sn := range realStacks {
+			out = append(out, renderStack(sn, s, osc8, width)...)
 			out = append(out, "")
 		}
 	}
-	if len(standalone) > 0 {
-		out = append(out, sectionLabel("standalone", len(standalone), opts), "")
+	if len(demoted) > 0 {
+		out = append(out, sectionLabel("standalone", len(demoted), s), "")
 		sl := standaloneLayout()
-		for i, p := range standalone {
+		for i, p := range demoted {
 			if i > 0 {
 				out = append(out, "")
 			}
-			out = append(out, prRow(p, sl, opts))
+			out = append(out, prRow(p, sl, s, osc8, width))
 		}
 		out = append(out, "")
 	}
@@ -188,32 +267,49 @@ func renderSections(stackNodes []*stacks.Node, standalone []model.PR, opts rende
 }
 
 func (Text) Format(repo *model.Repo, ctx Context) (string, error) {
-	opts := renderOpts{color: ctx.Color, osc8: ctx.OSC8}
+	s := newStyles(ctx.Color)
 	g := stacks.Group(repo.PRs, repo.DefaultBranch)
 	var out []string
-	out = append(out, "", repoHeader(repo, ctx, opts), "")
+	out = append(out, "", renderHeader(repo, ctx, s), "")
+	if legend := renderLegend(ctx.Width, s); legend != "" {
+		out = append(out, legend, "")
+	}
 
 	if len(ctx.AuthorOrder) > 1 {
 		// Multi-author mode: one @login · N PRs header per author, then that
 		// author's stacks and standalone sub-sections.
 		sections := groupByAuthor(g, ctx.AuthorOrder)
-		for _, sec := range sections {
-			stackedCount := 0
-			for _, node := range sec.Stacks {
-				stackedCount += len(flattenStack(node))
+		// Identify the last non-empty section so the divider only appears
+		// between sections that will actually render — never trailing.
+		lastNonEmpty := -1
+		for i, sec := range sections {
+			if sectionPRCount(sec) > 0 {
+				lastNonEmpty = i
 			}
-			prCount := stackedCount + len(sec.Standalone)
+		}
+		for i, sec := range sections {
+			prCount := sectionPRCount(sec)
 			if prCount == 0 {
 				continue
 			}
-			authorHeader := "  " + fgGray(fmt.Sprintf("@%s · %d %s", sec.Login, prCount, pluralPR(prCount)), opts.color)
+			left := fmt.Sprintf("@%s · %d %s", sec.Login, prCount, pluralPR(prCount))
+			// Totals are secondary — the author label is the dominant element.
+			// Numbers carry diff color; the +/- sign-prefixes stay in meta gray
+			// so the totals don't visually shout louder than the author label.
+			right := s.Gray.Render("+") + s.Green.Render(fmt.Sprintf("%d", sec.Adds)) +
+				" " + s.Gray.Render("-") + s.Red.Render(fmt.Sprintf("%d", sec.Dels))
+			authorHeader := authorHeaderLine(left, right, ctx.Width, s)
 			out = append(out, authorHeader, "")
-			out = append(out, renderSections(sec.Stacks, sec.Standalone, opts)...)
+			out = append(out, renderSections(sec.Stacks, sec.Standalone, s, ctx.OSC8, ctx.Width)...)
+			if i < lastNonEmpty {
+				out = append(out, sectionDivider(ctx.Width, s), "")
+			}
 		}
 	} else {
-		out = append(out, renderSections(g.Stacks, g.Standalone, opts)...)
+		out = append(out, renderSections(g.Stacks, g.Standalone, s, ctx.OSC8, ctx.Width)...)
 	}
 
+	out = append(out, renderSummaryFooter(repo, s))
 	if ctx.ShowStats {
 		footer := []string{fmt.Sprintf("%dms", ctx.LatencyMs)}
 		if repo.RateLimit != nil {
@@ -228,7 +324,7 @@ func (Text) Format(repo *model.Repo, ctx Context) (string, error) {
 				footer = append(footer, fmt.Sprintf("cached %s ago", age))
 			}
 		}
-		out = append(out, "  "+fgGray(strings.Join(footer, " · "), opts.color))
+		out = append(out, "  "+s.Gray.Render(strings.Join(footer, " · ")))
 	}
 	return strings.Join(out, "\n") + "\n", nil
 }
