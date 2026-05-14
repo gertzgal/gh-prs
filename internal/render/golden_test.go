@@ -29,6 +29,11 @@ var goldenCases = []struct {
 	// they run normally through the JSON/TOON loop (no AuthorOrder needed for those formats).
 	{"graphql-multi-author", false, false, "", nil, "", 0},
 	{"graphql-multi-author", false, false, ".multi-author", []string{"alice", "bob"}, "gh prs --author alice --author bob", 0},
+	// Wide multi-author render: locks in the spec's headline "After" layout
+	// with right-aligned per-author totals and the dotted divider between
+	// (not after) sections. Width 130 ensures the >= 80 branch fires for
+	// both row diff right-alignment and author-header right-alignment.
+	{"graphql-multi-author", false, false, ".multi-author.w130", []string{"alice", "bob"}, "gh prs --author alice --author bob", 130},
 	// Width-driven legend variants. Width 70 suppresses the legend entirely;
 	// 90 forces a multi-line wrap inside the box; 130 still wraps because the
 	// body content is wider than a single line at that width, but the box
