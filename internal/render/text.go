@@ -28,33 +28,29 @@ type rowLayout struct {
 	titleBold    bool
 }
 
-type renderOpts struct {
-	color bool
-	osc8  bool
-}
-
-func prRow(pr model.PR, layout rowLayout, opts renderOpts) string {
-	num := osc8Link(fmt.Sprintf("#%d", pr.Number), pr.URL, opts.osc8)
-	numColored := fgBrightYellow(num, opts.color)
-	ci := ciStatus(pr.CiState, opts.color)
-	review := reviewStatus(pr.ReviewDecision, opts.color)
-	diff := additions(pr, opts.color)
+func prRow(pr model.PR, layout rowLayout, s styles, osc8 bool) string {
+	num := osc8Link(fmt.Sprintf("#%d", pr.Number), pr.URL, osc8)
+	numColored := s.BrightYellow.Render(num)
+	ci := ciStatus(pr.CiState, s)
+	review := reviewStatus(pr.ReviewDecision, s)
+	diff := additions(pr, s)
 	title := pr.Title
 	if layout.titleBold {
-		title = styleBold(pr.Title, opts.color)
+		title = s.Bold.Render(pr.Title)
 	}
 	pos := ""
 	if layout.position != "" {
-		pos = "  " + fgGray(layout.position, opts.color)
+		pos = "  " + s.Gray.Render(layout.position)
 	}
 
 	titleLine := layout.titlePrefix + numColored + "  " + ci + "  " + review + "  " + diff + "  " + title + pos
-	branchLine := layout.branchPrefix + fgGray(pr.HeadRefName, opts.color)
-	row := titleLine + "\n" + branchLine
+	branchLine := layout.branchPrefix + s.Gray.Render(pr.HeadRefName)
 	if pr.IsDraft {
-		return styleDim(row, opts.color)
+		// Apply Dim per-line; lipgloss multi-line Render pads short lines to
+		// max width which would inject trailing spaces, changing layout.
+		return s.Dim.Render(titleLine) + "\n" + s.Dim.Render(branchLine)
 	}
-	return row
+	return titleLine + "\n" + branchLine
 }
 
 func flattenStack(node *stacks.Node) []model.PR {
@@ -65,7 +61,7 @@ func flattenStack(node *stacks.Node) []model.PR {
 	return out
 }
 
-func renderStack(node *stacks.Node, opts renderOpts) []string {
+func renderStack(node *stacks.Node, s styles, osc8 bool) []string {
 	prs := flattenStack(node)
 	n := len(prs)
 	lines := make([]string, 0, n)
@@ -79,31 +75,31 @@ func renderStack(node *stacks.Node, opts renderOpts) []string {
 		default:
 			glyph = "├"
 		}
-		connector := fgGray(glyph, opts.color)
+		connector := s.Gray.Render(glyph)
 		titlePrefix := "  " + connector + " "
 		var branchPrefix string
 		if i == n-1 {
 			branchPrefix = strings.Repeat(" ", 13)
 		} else {
-			branchPrefix = "  " + fgGray("│", opts.color) + strings.Repeat(" ", 10)
+			branchPrefix = "  " + s.Gray.Render("│") + strings.Repeat(" ", 10)
 		}
 		lines = append(lines, prRow(pr, rowLayout{
 			titlePrefix:  titlePrefix,
 			branchPrefix: branchPrefix,
 			position:     fmt.Sprintf("%d/%d", i+1, n),
 			titleBold:    i == 0,
-		}, opts))
+		}, s, osc8))
 	}
 	return lines
 }
 
-func repoHeader(repo *model.Repo, ctx Context, opts renderOpts) string {
+func repoHeader(repo *model.Repo, ctx Context, s styles) string {
 	subject := ctx.FilterLabel
 	if subject == "" {
 		subject = "@" + repo.ViewerLogin
 	}
 	text := fmt.Sprintf("%s/%s · %s · %s", repo.Owner, repo.Name, repo.DefaultBranch, subject)
-	return fgGray(text, opts.color)
+	return s.Gray.Render(text)
 }
 
 func pluralPR(n int) string {
@@ -113,8 +109,8 @@ func pluralPR(n int) string {
 	return "PRs"
 }
 
-func sectionLabel(kind string, n int, opts renderOpts) string {
-	return "  " + fgGray(fmt.Sprintf("%s · %d %s", kind, n, pluralPR(n)), opts.color)
+func sectionLabel(kind string, n int, s styles) string {
+	return "  " + s.Gray.Render(fmt.Sprintf("%s · %d %s", kind, n, pluralPR(n)))
 }
 
 // authorSection groups stacks and standalone PRs for a single author.
@@ -159,28 +155,28 @@ func standaloneLayout() rowLayout {
 
 // renderSections emits lines for stacks + standalone within a single logical
 // section (used for both single-author and per-author-group paths).
-func renderSections(stackNodes []*stacks.Node, standalone []model.PR, opts renderOpts) []string {
+func renderSections(stackNodes []*stacks.Node, standalone []model.PR, s styles, osc8 bool) []string {
 	var out []string
 
 	stackedCount := 0
-	for _, s := range stackNodes {
-		stackedCount += len(flattenStack(s))
+	for _, sn := range stackNodes {
+		stackedCount += len(flattenStack(sn))
 	}
 	if stackedCount > 0 {
-		out = append(out, sectionLabel("stack", stackedCount, opts), "")
-		for _, s := range stackNodes {
-			out = append(out, renderStack(s, opts)...)
+		out = append(out, sectionLabel("stack", stackedCount, s), "")
+		for _, sn := range stackNodes {
+			out = append(out, renderStack(sn, s, osc8)...)
 			out = append(out, "")
 		}
 	}
 	if len(standalone) > 0 {
-		out = append(out, sectionLabel("standalone", len(standalone), opts), "")
+		out = append(out, sectionLabel("standalone", len(standalone), s), "")
 		sl := standaloneLayout()
 		for i, p := range standalone {
 			if i > 0 {
 				out = append(out, "")
 			}
-			out = append(out, prRow(p, sl, opts))
+			out = append(out, prRow(p, sl, s, osc8))
 		}
 		out = append(out, "")
 	}
@@ -188,10 +184,10 @@ func renderSections(stackNodes []*stacks.Node, standalone []model.PR, opts rende
 }
 
 func (Text) Format(repo *model.Repo, ctx Context) (string, error) {
-	opts := renderOpts{color: ctx.Color, osc8: ctx.OSC8}
+	s := newStyles(ctx.Color)
 	g := stacks.Group(repo.PRs, repo.DefaultBranch)
 	var out []string
-	out = append(out, "", repoHeader(repo, ctx, opts), "")
+	out = append(out, "", repoHeader(repo, ctx, s), "")
 
 	if len(ctx.AuthorOrder) > 1 {
 		// Multi-author mode: one @login · N PRs header per author, then that
@@ -206,12 +202,12 @@ func (Text) Format(repo *model.Repo, ctx Context) (string, error) {
 			if prCount == 0 {
 				continue
 			}
-			authorHeader := "  " + fgGray(fmt.Sprintf("@%s · %d %s", sec.Login, prCount, pluralPR(prCount)), opts.color)
+			authorHeader := "  " + s.Gray.Render(fmt.Sprintf("@%s · %d %s", sec.Login, prCount, pluralPR(prCount)))
 			out = append(out, authorHeader, "")
-			out = append(out, renderSections(sec.Stacks, sec.Standalone, opts)...)
+			out = append(out, renderSections(sec.Stacks, sec.Standalone, s, ctx.OSC8)...)
 		}
 	} else {
-		out = append(out, renderSections(g.Stacks, g.Standalone, opts)...)
+		out = append(out, renderSections(g.Stacks, g.Standalone, s, ctx.OSC8)...)
 	}
 
 	if ctx.ShowStats {
@@ -228,7 +224,7 @@ func (Text) Format(repo *model.Repo, ctx Context) (string, error) {
 				footer = append(footer, fmt.Sprintf("cached %s ago", age))
 			}
 		}
-		out = append(out, "  "+fgGray(strings.Join(footer, " · "), opts.color))
+		out = append(out, "  "+s.Gray.Render(strings.Join(footer, " · ")))
 	}
 	return strings.Join(out, "\n") + "\n", nil
 }
