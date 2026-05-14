@@ -382,6 +382,41 @@ func TestText_MultiAuthor_BotSuffixMismatch(t *testing.T) {
 	}
 }
 
+func TestText_MultiAuthor_PerAuthorTotals_AndDivider(t *testing.T) {
+	prs := []model.PR{
+		samplePR(model.PR{Number: 1, Author: "alice", HeadRefName: "feat/a-1", Title: "Alice 1"}),
+		samplePR(model.PR{Number: 2, Author: "alice", HeadRefName: "feat/a-2", Title: "Alice 2"}),
+		samplePR(model.PR{Number: 3, Author: "bob", HeadRefName: "feat/b-1", Title: "Bob 1"}),
+	}
+	// Force additions/deletions for measurable totals.
+	prs[0].Additions, prs[0].Deletions = 10, 5
+	prs[1].Additions, prs[1].Deletions = 20, 7
+	prs[2].Additions, prs[2].Deletions = 3, 1
+
+	repo := repoWith(prs, nil)
+	ctx := Context{Color: false, OSC8: false, AuthorOrder: []string{"alice", "bob"}, Width: 120}
+	out := mustFormat(t, Text{}, repo, ctx)
+
+	if !strings.Contains(out, "@alice · 2 PRs") {
+		t.Errorf("missing alice header; got:\n%s", out)
+	}
+	if !strings.Contains(out, "+30 -12") {
+		t.Errorf("missing alice totals (+30 -12); got:\n%s", out)
+	}
+	if !strings.Contains(out, "@bob · 1 PR") {
+		t.Errorf("missing bob header; got:\n%s", out)
+	}
+	if !strings.Contains(out, "+3 -1") {
+		t.Errorf("missing bob totals (+3 -1); got:\n%s", out)
+	}
+	// Divider between sections — should appear exactly once (between alice and bob),
+	// not after bob.
+	dividerCount := strings.Count(out, strings.Repeat("·", 10))
+	if dividerCount < 1 {
+		t.Errorf("expected at least one dotted divider; got %d in:\n%s", dividerCount, out)
+	}
+}
+
 func TestText_MultiAuthor_EmptyAuthorSectionOmitted(t *testing.T) {
 	// carol has no PRs — her section should not appear
 	prs := []model.PR{

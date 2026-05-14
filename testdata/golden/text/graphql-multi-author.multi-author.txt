@@ -7,6 +7,7 @@ repo acme-org/widget · base main
 ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
   @alice · 2 PRs
+  +298 -17
 
   stack · 2 PRs
 
@@ -15,7 +16,10 @@ repo acme-org/widget · base main
   └ #3002  ✓ ci  ○ review  +88-12  [FEAT-1] Wire authentication into routes (2/2)  2/2
              alice/feat-1-auth-routes
 
+  ················································································
+
   @bob · 1 PR
+  +113 -2
 
   standalone · 1 PR
 

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/gertzgal/gh-prs/internal/model"
 	"github.com/gertzgal/gh-prs/internal/stacks"
 )
@@ -112,6 +113,8 @@ type authorSection struct {
 	Login      string // resolved login (never "@me")
 	Stacks     []*stacks.Node
 	Standalone []model.PR
+	Adds       int
+	Dels       int
 }
 
 // groupByAuthor partitions stacks and standalone PRs by author, preserving
@@ -130,14 +133,45 @@ func groupByAuthor(g stacks.Grouped, authorOrder []string) []authorSection {
 	for _, node := range g.Stacks {
 		if i, ok := idx[lowerKey(node.PR.Author)]; ok {
 			sections[i].Stacks = append(sections[i].Stacks, node)
+			for cur := node; cur != nil; cur = cur.Child {
+				sections[i].Adds += cur.PR.Additions
+				sections[i].Dels += cur.PR.Deletions
+			}
 		}
 	}
 	for _, pr := range g.Standalone {
 		if i, ok := idx[lowerKey(pr.Author)]; ok {
 			sections[i].Standalone = append(sections[i].Standalone, pr)
+			sections[i].Adds += pr.Additions
+			sections[i].Dels += pr.Deletions
 		}
 	}
 	return sections
+}
+
+// authorHeaderLine renders the per-author header with `left` on the left,
+// `right` right-aligned within the row when width >= 80, or stacked on two
+// lines below that threshold. Both halves are already styled.
+func authorHeaderLine(left, right string, width int, s styles) string {
+	leftStyled := "  " + s.Gray.Render(left)
+	if width < 80 {
+		return leftStyled + "\n  " + right
+	}
+	gap := width - lipgloss.Width(leftStyled) - lipgloss.Width(right)
+	if gap < 1 {
+		gap = 1
+	}
+	return leftStyled + strings.Repeat(" ", gap) + right
+}
+
+// sectionDivider renders a dotted horizontal rule. Truncates to width-2 when
+// width > 0 to leave breathing room; falls back to a fixed length otherwise.
+func sectionDivider(width int, s styles) string {
+	n := width - 2
+	if n <= 0 {
+		n = 80
+	}
+	return "  " + s.Gray.Render(strings.Repeat("·", n))
 }
 
 func standaloneLayout() rowLayout {
@@ -190,7 +224,7 @@ func (Text) Format(repo *model.Repo, ctx Context) (string, error) {
 		// Multi-author mode: one @login · N PRs header per author, then that
 		// author's stacks and standalone sub-sections.
 		sections := groupByAuthor(g, ctx.AuthorOrder)
-		for _, sec := range sections {
+		for i, sec := range sections {
 			stackedCount := 0
 			for _, node := range sec.Stacks {
 				stackedCount += len(flattenStack(node))
@@ -199,9 +233,17 @@ func (Text) Format(repo *model.Repo, ctx Context) (string, error) {
 			if prCount == 0 {
 				continue
 			}
-			authorHeader := "  " + s.Gray.Render(fmt.Sprintf("@%s · %d %s", sec.Login, prCount, pluralPR(prCount)))
+			left := fmt.Sprintf("@%s · %d %s", sec.Login, prCount, pluralPR(prCount))
+			// Totals are secondary — the author label is the dominant element. We
+			// dim the numbers (faint) so the eye lands on "@login · N PRs" first.
+			right := s.Green.Faint(true).Render(fmt.Sprintf("+%d", sec.Adds)) +
+				" " + s.Red.Faint(true).Render(fmt.Sprintf("-%d", sec.Dels))
+			authorHeader := authorHeaderLine(left, right, ctx.Width, s)
 			out = append(out, authorHeader, "")
 			out = append(out, renderSections(sec.Stacks, sec.Standalone, s, ctx.OSC8)...)
+			if i < len(sections)-1 {
+				out = append(out, sectionDivider(ctx.Width, s), "")
+			}
 		}
 	} else {
 		out = append(out, renderSections(g.Stacks, g.Standalone, s, ctx.OSC8)...)
