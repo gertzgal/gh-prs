@@ -32,6 +32,11 @@ type Context struct {
 	// line — used by tests and by callers that don't have a meaningful
 	// command string. Other formatters ignore this field.
 	Command string
+	// Width is the terminal width in columns at the time of rendering.
+	// 0 means "treat as wide" (>= 110). Tests set explicit widths; the CLI
+	// populates this from golang.org/x/term on a TTY and leaves it 0
+	// otherwise. Only consulted by the text formatter.
+	Width int
 }
 
 // Formatter renders a fetched repo into its target output form. Implementations

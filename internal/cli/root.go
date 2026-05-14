@@ -183,6 +183,7 @@ func runOnce(flags Flags, env map[string]string, stdout, stderr io.Writer) int {
 			FilterLabel: filters.Label(),
 			AuthorOrder: authorOrder,
 			Command:     renderCommand(flags),
+			Width:       TerminalWidth(int(os.Stdout.Fd())),
 		},
 		Stdout: stdout,
 		Stderr: stderr,

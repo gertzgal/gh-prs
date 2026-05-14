@@ -1,6 +1,10 @@
 package cli
 
-import "strings"
+import (
+	"strings"
+
+	"golang.org/x/term"
+)
 
 func truthyFlag(v string, present bool) bool {
 	if !present || v == "" || v == "0" || strings.EqualFold(v, "false") {
@@ -26,3 +30,18 @@ func ShouldColor(env map[string]string, stdoutIsTTY bool) bool {
 
 // ShouldOSC8 returns stdoutIsTTY. NO_COLOR does not gate OSC8.
 func ShouldOSC8(stdoutIsTTY bool) bool { return stdoutIsTTY }
+
+// TerminalWidth returns the column count for the given file descriptor,
+// or 0 when the descriptor is not a terminal or the call fails. Callers
+// pass int(os.Stdout.Fd()) on the standard CLI path. A return value of 0
+// is treated by the renderer as "wide" (no width-driven suppression).
+func TerminalWidth(fd int) int {
+	if !term.IsTerminal(fd) {
+		return 0
+	}
+	w, _, err := term.GetSize(fd)
+	if err != nil {
+		return 0
+	}
+	return w
+}
