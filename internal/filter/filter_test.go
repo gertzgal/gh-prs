@@ -433,3 +433,224 @@ func TestSet_ResolveAndApply_ChainsWithOtherListFilters(t *testing.T) {
 		t.Fatalf("want PR #2, got %v", got)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// ExcludeAuthorFilter
+// ---------------------------------------------------------------------------
+
+func TestExcludeAuthorFilter_EmptyLogins_ProducesNoFragments(t *testing.T) {
+	f := filter.NewExcludeAuthorFilter(nil)
+	if got := f.QueryFragments(); len(got) != 0 {
+		t.Fatalf("want empty fragments, got %v", got)
+	}
+}
+
+func TestExcludeAuthorFilter_SingleLogin(t *testing.T) {
+	f := filter.NewExcludeAuthorFilter([]string{"alice"})
+	got := f.QueryFragments()
+	want := []string{"-author:alice"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestExcludeAuthorFilter_MultipleLogins(t *testing.T) {
+	f := filter.NewExcludeAuthorFilter([]string{"alice", "bob"})
+	got := f.QueryFragments()
+	want := []string{"-author:alice", "-author:bob"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestExcludeAuthorFilter_MeAlias_PassesThroughInQuery(t *testing.T) {
+	f := filter.NewExcludeAuthorFilter([]string{"@me"})
+	got := f.QueryFragments()
+	want := []string{"-author:@me"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestExcludeAuthorFilter_Apply_DropsMatching(t *testing.T) {
+	f := filter.NewExcludeAuthorFilter([]string{"bob"})
+	prs := []model.PR{
+		{Number: 1, Author: "alice"},
+		{Number: 2, Author: "bob"},
+		{Number: 3, Author: "carol"},
+	}
+	got := f.Apply(prs)
+	if len(got) != 2 || got[0].Number != 1 || got[1].Number != 3 {
+		t.Fatalf("want PRs #1,#3, got %v", got)
+	}
+}
+
+func TestExcludeAuthorFilter_Apply_CaseInsensitive(t *testing.T) {
+	f := filter.NewExcludeAuthorFilter([]string{"BOB"})
+	prs := []model.PR{
+		{Number: 1, Author: "Bob"},
+		{Number: 2, Author: "alice"},
+	}
+	got := f.Apply(prs)
+	if len(got) != 1 || got[0].Number != 2 {
+		t.Fatalf("want PR #2, got %v", got)
+	}
+}
+
+func TestExcludeAuthorFilter_Apply_MultipleLogins(t *testing.T) {
+	f := filter.NewExcludeAuthorFilter([]string{"alice", "bob"})
+	prs := []model.PR{
+		{Number: 1, Author: "alice"},
+		{Number: 2, Author: "bob"},
+		{Number: 3, Author: "carol"},
+	}
+	got := f.Apply(prs)
+	if len(got) != 1 || got[0].Number != 3 {
+		t.Fatalf("want PR #3, got %v", got)
+	}
+}
+
+func TestExcludeAuthorFilter_Apply_ZeroLogins_Passthrough(t *testing.T) {
+	f := filter.NewExcludeAuthorFilter(nil)
+	prs := []model.PR{{Number: 1, Author: "alice"}}
+	if got := f.Apply(prs); len(got) != 1 {
+		t.Fatalf("want passthrough, got %v", got)
+	}
+}
+
+func TestExcludeAuthorFilter_Apply_NilInput_Safe(t *testing.T) {
+	f := filter.NewExcludeAuthorFilter([]string{"alice"})
+	if got := f.Apply(nil); len(got) != 0 {
+		t.Fatalf("want empty, got %v", got)
+	}
+}
+
+func TestExcludeAuthorFilter_Label_Nil_Empty(t *testing.T) {
+	f := filter.NewExcludeAuthorFilter(nil)
+	if got := f.Label(); got != "" {
+		t.Fatalf("want empty, got %q", got)
+	}
+}
+
+func TestExcludeAuthorFilter_Label_SingleLogin(t *testing.T) {
+	f := filter.NewExcludeAuthorFilter([]string{"alice"})
+	want := "!@alice"
+	if got := f.Label(); got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestExcludeAuthorFilter_Label_AtPrefixNotDoubled(t *testing.T) {
+	f := filter.NewExcludeAuthorFilter([]string{"@alice"})
+	want := "!@alice"
+	if got := f.Label(); got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestExcludeAuthorFilter_Label_MeIsNotSentinelEmpty(t *testing.T) {
+	// Unlike AuthorFilter, @me in an exclude filter is always an explicit
+	// user act and must remain visible in the header.
+	f := filter.NewExcludeAuthorFilter([]string{"@me"})
+	want := "!@me"
+	if got := f.Label(); got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestExcludeAuthorFilter_Label_MultipleLogins(t *testing.T) {
+	f := filter.NewExcludeAuthorFilter([]string{"alice", "bob"})
+	want := "!@alice, !@bob"
+	if got := f.Label(); got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Set composite — author + exclude
+// ---------------------------------------------------------------------------
+
+func TestSet_QueryFragments_AuthorAndExclude_Flattened(t *testing.T) {
+	s := filter.NewSet(
+		[]filter.QueryFilter{
+			filter.NewAuthorFilter([]string{"alice", "bob"}),
+			filter.NewExcludeAuthorFilter([]string{"bob"}),
+		},
+		nil,
+	)
+	got := s.QueryFragments()
+	want := []string{"author:alice", "author:bob", "-author:bob"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestSet_Label_AuthorAndExclude_JoinedWithDot(t *testing.T) {
+	s := filter.NewSet(
+		[]filter.QueryFilter{
+			filter.NewAuthorFilter([]string{"alice"}),
+			filter.NewExcludeAuthorFilter([]string{"bob"}),
+		},
+		nil,
+	)
+	want := "@alice · !@bob"
+	if got := s.Label(); got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestSet_Apply_AuthorAndExclude_ExcludeWins(t *testing.T) {
+	af := filter.NewAuthorFilter([]string{"alice", "bob"})
+	ex := filter.NewExcludeAuthorFilter([]string{"bob"})
+	s := filter.NewSet(
+		[]filter.QueryFilter{af, ex},
+		[]filter.ListFilter{af, ex},
+	)
+	prs := []model.PR{
+		{Number: 1, Author: "alice"},
+		{Number: 2, Author: "bob"},
+		{Number: 3, Author: "carol"},
+	}
+	got := s.Apply(prs)
+	if len(got) != 1 || got[0].Number != 1 {
+		t.Fatalf("want PR #1, got %v", got)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Set.ResolveAndApply — @me substitution for ExcludeAuthorFilter
+// ---------------------------------------------------------------------------
+
+func TestSet_ResolveAndApply_ExcludeMe_ResolvesToViewer(t *testing.T) {
+	ex := filter.NewExcludeAuthorFilter([]string{"@me"})
+	s := filter.NewSet(
+		[]filter.QueryFilter{ex},
+		[]filter.ListFilter{ex},
+	)
+	prs := []model.PR{
+		{Number: 1, Author: "alice"},
+		{Number: 2, Author: "bob"},
+	}
+	got := s.ResolveAndApply(prs, "alice")
+	if len(got) != 1 || got[0].Number != 2 {
+		t.Fatalf("want PR #2, got %v", got)
+	}
+}
+
+func TestSet_ResolveAndApply_AuthorAndExclude_BothResolveMe(t *testing.T) {
+	af := filter.NewAuthorFilter([]string{"@me", "bob"})
+	ex := filter.NewExcludeAuthorFilter([]string{"bob"})
+	s := filter.NewSet(
+		[]filter.QueryFilter{af, ex},
+		[]filter.ListFilter{af, ex},
+	)
+	prs := []model.PR{
+		{Number: 1, Author: "alice"},
+		{Number: 2, Author: "bob"},
+		{Number: 3, Author: "carol"},
+	}
+	got := s.ResolveAndApply(prs, "alice")
+	if len(got) != 1 || got[0].Number != 1 {
+		t.Fatalf("want PR #1 (alice), got %v", got)
+	}
+}

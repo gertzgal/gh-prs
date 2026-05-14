@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `--exclude-author <login>` (repeatable, env `GH_PRS_EXCLUDE_AUTHOR`,
+  comma-separated) drops PRs by the listed authors from the result set.
+  Supports the `@me` sentinel. Useful with `--team` to hide one teammate's
+  PRs from the team feed.
 - `--team <slug>` (repeatable, env `GH_PRS_TEAM`, comma-separated) filters PRs
   to authors who belong to one or more GitHub teams in the current repo's org.
   Slugs are case-insensitive. Combines with `--author` as a union. Memberships

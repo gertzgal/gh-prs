@@ -80,3 +80,18 @@ func (f AuthorFilter) Label() string {
 	}
 	return strings.Join(parts, ", ")
 }
+
+// resolveMe implements the package-internal meResolver interface so that
+// Set.ResolveAndApply substitutes the "@me" sentinel with the viewer login
+// without any type-switch growth at the call site.
+func (f AuthorFilter) resolveMe(viewerLogin string) ListFilter {
+	resolved := make([]string, len(f.Logins))
+	for i, login := range f.Logins {
+		if login == "@me" {
+			resolved[i] = viewerLogin
+		} else {
+			resolved[i] = login
+		}
+	}
+	return AuthorFilter{Logins: resolved}
+}

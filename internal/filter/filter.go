@@ -76,22 +76,26 @@ func (s Set) Apply(prs []model.PR) []model.PR {
 	return prs
 }
 
-// ResolveAndApply clones the Set, resolves any "@me" sentinel in AuthorFilter
-// logins to the provided viewerLogin, then runs all ListFilters in order.
-// The caller (app.Run) owns the policy of what "@me" means.
+// meResolver is implemented by filters that may contain the "@me" sentinel
+// and need to substitute it with the viewer's real login at apply time.
+//
+// Keeping this contract package-internal lets Set.ResolveAndApply dispatch
+// generically — adding a new "@me"-aware filter type requires only that the
+// new type implements resolveMe; Set itself never needs another type-switch
+// branch. This satisfies the Open/Closed principle.
+type meResolver interface {
+	ListFilter
+	resolveMe(viewerLogin string) ListFilter
+}
+
+// ResolveAndApply clones the Set, resolves any "@me" sentinel in filters that
+// implement meResolver to the provided viewerLogin, then runs all ListFilters
+// in order. The caller (app.Run) owns the policy of what "@me" means.
 func (s Set) ResolveAndApply(prs []model.PR, viewerLogin string) []model.PR {
 	lists := make([]ListFilter, len(s.lists))
 	for i, f := range s.lists {
-		if af, ok := f.(AuthorFilter); ok {
-			resolved := make([]string, len(af.Logins))
-			for j, login := range af.Logins {
-				if login == "@me" {
-					resolved[j] = viewerLogin
-				} else {
-					resolved[j] = login
-				}
-			}
-			lists[i] = AuthorFilter{Logins: resolved}
+		if r, ok := f.(meResolver); ok {
+			lists[i] = r.resolveMe(viewerLogin)
 			continue
 		}
 		lists[i] = f

@@ -67,6 +67,8 @@ gh prs --author alice --author bob  # alice OR bob (repeatable)
 gh prs --team widgets       # filter to PRs by any member of the widgets team (in current repo's org)
 gh prs --team widgets --team gadgets  # union of both teams (case-insensitive slugs)
 gh prs --team widgets --author alice   # team members OR alice (union)
+gh prs --team widgets --exclude-author alice  # team feed minus alice's PRs
+gh prs --exclude-author @me           # hide your own PRs (supports @me)
 gh prs --help
 ```
 
@@ -93,7 +95,7 @@ prs[4]{number,title,url,isDraft,headRefName,baseRefName,additions,deletions,chan
 
 **Stack membership is inline.** Every PR row carries `stackId` (1-based stack index, or `null` for standalone) and `stackPos` (e.g. `"2/4"`). Agents don't need to walk `baseRefName`/`headRefName` chains to understand topology — it's a column lookup. `stackId`/`stackPos` are also added to `--format json` output for consistency.
 
-Also honoured via `GH_PRS_FORMAT=<name>`, `GH_PRS_AUTHOR=alice,bob`, and `GH_PRS_TEAM=widgets,gadgets` (comma-separated).
+Also honoured via `GH_PRS_FORMAT=<name>`, `GH_PRS_AUTHOR=alice,bob`, `GH_PRS_TEAM=widgets,gadgets`, and `GH_PRS_EXCLUDE_AUTHOR=alice,bob` (comma-separated).
 
 **Caching.** Responses are cached to disk (platform cache dir, under `gh-prs/`)
 with a 60s TTL by default. Repeat invocations within that window skip the

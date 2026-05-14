@@ -29,6 +29,11 @@ type Flags struct {
 	// insensitive; lowercasing happens at resolution time. composeFlags
 	// does no resolution: that is a network operation owned by runOnce.
 	Teams []string
+	// ExcludeAuthors holds the --exclude-author logins (repeatable flag).
+	// PRs by these logins are dropped from the result set. Supports the
+	// "@me" sentinel, which is resolved at apply time (not in composeFlags)
+	// so this package stays free of network-aware policy.
+	ExcludeAuthors []string
 }
 
 // Machine reports whether the selected format is for machine consumption
@@ -46,7 +51,9 @@ func (f Flags) Machine() bool { return f.Format != render.FormatText }
 //     comma-separated for env (e.g. "alice,bob"), repeatable flag for CLI.
 //   - GH_PRS_TEAM=<a[,b,...]>    sets team list if --team not passed;
 //     same semantics as GH_PRS_AUTHOR.
-func composeFlags(cobraFormat string, cobraDebug, cobraNoCache bool, cobraCacheTTL string, cobraStats bool, cobraAuthors, cobraTeams []string, env map[string]string) Flags {
+//   - GH_PRS_EXCLUDE_AUTHOR=<a[,b,...]> sets exclude-author list if
+//     --exclude-author not passed; same semantics as GH_PRS_AUTHOR.
+func composeFlags(cobraFormat string, cobraDebug, cobraNoCache bool, cobraCacheTTL string, cobraStats bool, cobraAuthors, cobraTeams, cobraExcludeAuthors []string, env map[string]string) Flags {
 	debug := cobraDebug
 	if !debug {
 		if v, ok := env["DEBUG"]; ok && v != "" {
@@ -104,13 +111,25 @@ func composeFlags(cobraFormat string, cobraDebug, cobraNoCache bool, cobraCacheT
 		}
 	}
 
+	excludeAuthors := cobraExcludeAuthors
+	if len(excludeAuthors) == 0 {
+		if v := env["GH_PRS_EXCLUDE_AUTHOR"]; v != "" {
+			for _, a := range strings.Split(v, ",") {
+				if t := strings.TrimSpace(a); t != "" {
+					excludeAuthors = append(excludeAuthors, t)
+				}
+			}
+		}
+	}
+
 	return Flags{
-		Format:   format,
-		Debug:    debug,
-		NoCache:  noCache,
-		CacheTTL: ttl,
-		Stats:    stats,
-		Authors:  authors,
-		Teams:    teams,
+		Format:         format,
+		Debug:          debug,
+		NoCache:        noCache,
+		CacheTTL:       ttl,
+		Stats:          stats,
+		Authors:        authors,
+		Teams:          teams,
+		ExcludeAuthors: excludeAuthors,
 	}
 }
